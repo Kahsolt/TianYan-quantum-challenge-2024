@@ -12,6 +12,18 @@
   - 队名: 大群与你同在
   - stage1_P1: 量子游戏设计
 
+
+#### reference
+
+- isQ: [https://www.arclightquantum.com/isq-docs/latest/](https://www.arclightquantum.com/isq-docs/latest/)
+  - grammar: [https://www.arclightquantum.com/isq-docs/latest/grammar/](https://www.arclightquantum.com/isq-docs/latest/grammar/)
+  - binary-release: [https://www.arclightquantum.com/isq-releases/isqc-standalone/](https://www.arclightquantum.com/isq-releases/isqc-standalone/)
+    - ⚠ 有巨坑，虽然发布了windows-build，但实测脚本没有连通运行不起来!!!
+  - docker-release: [https://www.arclightquantum.com/isq-docs/latest/install/#docker-container](https://www.arclightquantum.com/isq-docs/latest/install/#docker-container)
+    - ⚠ 也有巨坑，停留在古旧版本了
+- isqopen: [https://pypi.org/project/isqopen/](https://pypi.org/project/isqopen/)
+  - 虽然没更新了但还能运行
+
 ----
 by Armit
 2024/06/22

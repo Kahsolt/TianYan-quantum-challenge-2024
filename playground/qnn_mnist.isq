@@ -1,0 +1,70 @@
+// Create Time: 2024/06/23
+// Author: Armit
+
+// 中电信量子的官方示例: 手写数字识别，让我们看看他这套参数保真吗
+// https://qc.zdxlz.com/solution/digitalRecognition?lang=zh
+// isQ grammar: https://www.arclightquantum.com/isq-docs/latest/grammar/
+
+// 完整数据流: resize(28*28) -> 规范化 -> 特征提取/降维 -> 角度编码后输入量子线路
+// 量子线路线路结构 (可以在浏览器中按F11-网络请求中看到)
+//  - n_qubits: 5
+//  - encoder: RY
+//  - ansatz: [RZ-RY-RX + cyclic(CNOT)]*3
+
+// RZ-RY-RX param for each qubit of each repeat
+double p[] = [
+  // layer-0
+  0.976, 2.392, 2.095, 
+  1.922, 0.549, 0.918,
+  -0.468, 2.788, 1.909, 
+  2.132, 0.521, 2.362,
+  2.474, 0.319, 0.570,
+  // layer-1
+  0.716, 1.085, 2.120,
+  0.870, 0.795, 1.908,
+  -0.041, 1.043, 1.472,
+  1.375, 2.951, 0.269,
+  1.404, 1.602, 0.085,
+  // layer-2
+  1.016, -0.013, 0.075,
+  2.961, 2.774, 2.725,
+  1.107, 0.397, 2.106,
+  1.462, 0.555, 1.694,
+  0.807, 2.772, 1.259
+];
+
+int nq = 5;
+qbit q[nq];
+int input[] = [
+  -0.254,
+  0.245,
+  1.458,
+  1.503,
+  0.250,
+];
+bool output[nq];
+
+unit main() {
+  // encoder
+  for i in 0:nq {
+    RY(input[i], q[i]);
+  }
+
+  // ansatz
+  for d in 0:3 {
+    int offset = d * nq * 3;
+    for i in 0:nq {
+      RZ(p[offset+i*3+0], q[i]);
+      RY(p[offset+i*3+1], q[i]);
+      RX(p[offset+i*3+2], q[i]);
+    }
+    for i in 0:nq {
+      CNOT(q[i], q[(i+1)%nq]);
+    }
+  }
+
+  // measure
+  for i in 0:nq {
+    output[i] = M(q[i]);
+  }
+}

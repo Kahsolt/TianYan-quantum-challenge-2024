@@ -1,0 +1,15 @@
+# |01>
+X Q4
+H Q4
+CZ Q10 Q4
+H Q4
+M Q4
+M Q10
+
+# |10>
+X Q10
+H Q4
+CZ Q10 Q4
+H Q4
+M Q4
+M Q10

@@ -1,0 +1,17 @@
+H Q0
+B Q0
+H Q1
+B Q1
+Z Q0
+CZ Q1 Q0
+B Q0
+B Q1
+H Q0
+H Q1
+Z Q0
+Z Q1
+CZ Q1 Q0
+H Q0
+H Q1
+M Q0
+M Q1

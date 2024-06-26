@@ -10,7 +10,7 @@ from typing import List, Dict
 import numpy as np
 from numpy import ndarray
 
-from hardware_info import HardwareInfo, get_hardware_info
+from hardware_info import get_hardware_graph_info
 
 
 def DFS(u:int, fid:float, path:List[int], visit:Dict[int, bool], F_V:Dict[int, float], F_E:ndarray, env:Dict):
@@ -41,33 +41,16 @@ def DFS(u:int, fid:float, path:List[int], visit:Dict[int, bool], F_V:Dict[int, f
     visit[v] = False
 
 
-def find_chain_9():
-  # hardware
-  hardware_info: HardwareInfo = get_hardware_info()
-
-  # name to id
-  n2i = lambda n: int(n[1:])
-  # err (%) to fid
-  e2f = lambda x: round(1 - x / 100, 4)
-
-  # vertex fidelity
-  V: List[str] = list(set(hardware_info.qubits) - set(hardware_info.disabled_qubits))
-  F_V: Dict[int, float] = {n2i(q): e2f(hardware_info.q1_gate_error[q]) * e2f(hardware_info.read_error[q]) for q in V}
-  # edge fidelity
-  E: List[str] = list(set(hardware_info.couplers) - set(hardware_info.disabled_couplers))
-  maxV = max(map(n2i, V))
-  F_E = np.zeros([maxV+1, maxV+1], dtype=np.float32)
-  for g in E:
-    i, j = [n2i(it) for it in hardware_info.couplers[g]]
-    F_E[i, j] = F_E[j, i] = e2f(hardware_info.q2_gate_error[g])
-  del V, E
+def find_chain(nlen:int):
+  # graph
+  F_V, F_E = get_hardware_graph_info()
 
   # env record
   env = {
     'has_record': False,
     'best_fid': 0.0,
     'best_path': None,
-    'tgt_D': 9,   # <- you may change this
+    'tgt_D': nlen,
     'DFS_call': 0
   }
   # DFS start!
@@ -81,6 +64,8 @@ def find_chain_9():
   # >> best path: [51, 45, 38, 44, 49, 56, 62, 57, 63]
   # >> best fid: 0.5997714916127439
   # >> best path: [51, 45, 38, 32, 25, 31, 24, 30, 36]
+  # >> best fid: 0.6001462844850673
+  # >> best path: [51, 45, 38, 44, 49, 56, 50, 57, 63]
   print('=' * 72)
   print('>> DFS call:', env['DFS_call'])
   print('>> best fid:', env['best_fid'])
@@ -88,4 +73,4 @@ def find_chain_9():
 
 
 if __name__ == '__main__':
-  find_chain_9()
+  find_chain(9)

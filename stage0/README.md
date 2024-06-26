@@ -17,7 +17,7 @@ Problem List
 - [x] Q7: iQFT (hard)
 - [x] Q8: Grover algo. (hard)
 - [x] Q9: Deutsch-Josza algo. (medium)
-- [ ] Q10: GHZ-state fidelity (hard)
+- [x] Q10: GHZ-state fidelity (hard)
 
 ----
 by Armit

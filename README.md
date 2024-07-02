@@ -13,6 +13,16 @@
   - stage1_P1: 量子游戏设计
 
 
+#### install
+
+- `conda create -n q python==3.9`
+  - 版本固定 3.9, 否则你会被这些自制库的兼容性干烂 :(
+- `conda activate q`
+- `pip install pennylane`
+- `pip install isqopen` (弧光量子)
+- `pip install pyqpanda` (本源量子)
+
+
 #### reference
 
 - isQ: [https://www.arclightquantum.com/isq-docs/latest/](https://www.arclightquantum.com/isq-docs/latest/)

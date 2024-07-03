@@ -12,3 +12,8 @@ REM For other links that cannot download, just prefix with a REM
 REM    REM QAOA 量子近似优化算法介绍
 REM    REM https://zhuanlan.zhihu.com/p/343687041
 
+REM Characterizing Quantum Supremacy in Near-Term Devices
+wget -nc https://arxiv.org/pdf/1608.00263.pdf
+
+REM Cross-entropy benchmarking
+REM https://en.wikipedia.org/wiki/Cross-entropy_benchmarking

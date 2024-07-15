@@ -6,6 +6,9 @@
   qubit_ids: [0, 1, 2, 3]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 's_0']
+  SE: 4
+  DE: 8
+
 [example_1]
   n_qubits: 6
   n_gates: 616
@@ -14,6 +17,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 's_0', 's_1']
+  SE: 8
+  DE: 16
+
 [example_2]
   n_qubits: 6
   n_gates: 616
@@ -22,6 +28,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 's_0', 's_1']
+  SE: 8
+  DE: 16
+
 [example_3]
   n_qubits: 8
   n_gates: 996
@@ -30,6 +39,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5, 6, 7]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 'd1_2', 's_0', 's_1', 's_2']
+  SE: 12
+  DE: 24
+
 [example_4]
   n_qubits: 8
   n_gates: 1328
@@ -38,6 +50,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5, 6, 7]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 'd1_2', 'd1_3', 's_0', 's_1', 's_2', 's_3']
+  SE: 16
+  DE: 32
+
 [example_5]
   n_qubits: 12
   n_gates: 3040
@@ -46,6 +61,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 'd1_2', 'd1_3', 'd1_4', 'd1_5', 'd1_6', 'd1_7', 's_0', 's_1', 's_2', 's_3', 's_4', 's_5', 's_6', 's_7']
+  SE: 32
+  DE: 64
+
 [example_6]
   n_qubits: 12
   n_gates: 3420
@@ -54,6 +72,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 'd1_2', 'd1_3', 'd1_4', 'd1_5', 'd1_6', 'd1_7', 'd1_8', 's_0', 's_1', 's_2', 's_3', 's_4', 's_5', 's_6', 's_7', 's_8']
+  SE: 36
+  DE: 72
+
 [example_7]
   n_qubits: 16
   n_gates: 5136
@@ -62,6 +83,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 'd1_10', 'd1_11', 'd1_2', 'd1_3', 'd1_4', 'd1_5', 'd1_6', 'd1_7', 'd1_8', 'd1_9', 's_0', 's_1', 's_10', 's_11', 's_2', 's_3', 's_4', 's_5', 's_6', 's_7', 's_8', 's_9']
+  SE: 48
+  DE: 96
+
 [example_8]
   n_qubits: 16
   n_gates: 6420
@@ -70,6 +94,9 @@
   qubit_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 'd1_10', 'd1_11', 'd1_12', 'd1_13', 'd1_14', 'd1_2', 'd1_3', 'd1_4', 'd1_5', 'd1_6', 'd1_7', 'd1_8', 'd1_9', 's_0', 's_1', 's_10', 's_11', 's_12', 's_13', 's_14', 's_2', 's_3', 's_4', 's_5', 's_6', 's_7', 's_8', 's_9']
+  SE: 60
+  DE: 120
+
 [example_9]
   n_qubits: 16
   n_gates: 6848
@@ -78,3 +105,6 @@
   qubit_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   gate_types: ['CZ', 'H', 'RZ', 'X2M', 'X2P']
   param_names: ['d1_0', 'd1_1', 'd1_10', 'd1_11', 'd1_12', 'd1_13', 'd1_14', 'd1_15', 'd1_2', 'd1_3', 'd1_4', 'd1_5', 'd1_6', 'd1_7', 'd1_8', 'd1_9', 's_0', 's_1', 's_10', 's_11', 's_12', 's_13', 's_14', 's_15', 's_2', 's_3', 's_4', 's_5', 's_6', 's_7', 's_8', 's_9']
+  SE: 64
+  DE: 128
+

@@ -5,6 +5,7 @@
 # 查看 QCIS 线路基本信息
 
 from utils import *
+from parse_qcir import parse_qcis
 
 
 if __name__ == '__main__':
@@ -18,3 +19,10 @@ if __name__ == '__main__':
     print(f'[{fp.stem}]')
     for k, v in vars(info).items():
       print(f'  {k}: {v}')
+    ir = parse_qcis(qcis)
+    n_SE = sum(block.type == 's' for block in ir)
+    n_DE = sum(block.type == 'd' for block in ir)
+    print(f'  SE: {n_SE}')
+    print(f'  DE: {n_DE}')
+
+    print()

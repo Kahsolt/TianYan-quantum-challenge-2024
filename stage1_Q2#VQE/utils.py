@@ -67,6 +67,12 @@ PRIMITIVE_GATES = [
 DAGGER_GATE_MAP = {
   'X2P': 'X2M',
   'X2M': 'X2P',
+  'Y2P': 'Y2M',
+  'Y2M': 'Y2P',
+  'S': 'SD',
+  'SD': 'S',
+  'T': 'TD',
+  'TD': 'T',
 }
 
 
@@ -205,7 +211,7 @@ class Inst:
     return self.control_qubit is None and self.param is None
 
   def __repr__(self):
-    return f'<Inst gate={self.gate} param={self.param}> target={self.target_qubit} control={self.control_qubit}'
+    return f'<Inst gate={self.gate} param={self.param} target={self.target_qubit} control={self.control_qubit}>'
 
   def to_qcis(self):
     if self.is_Q2:
@@ -251,7 +257,7 @@ def qcis_to_ir(qcis:str) -> IR:
       g, c, t = parse_inst_Q2(inst)
       ir.append(Inst(g, t, control_qubit=c))
     elif is_inst_Q1P(inst):
-      g, q, p = parse_inst_Q1P()
+      g, q, p = parse_inst_Q1P(inst)
       ir.append(Inst(g, q, param=p))
     elif is_inst_Q1(inst):
       g, q = parse_inst_Q1(inst)

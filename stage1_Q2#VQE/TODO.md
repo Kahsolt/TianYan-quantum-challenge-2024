@@ -50,3 +50,39 @@
 - [*] 写脚本获取线路信息 `stats_qcir.py`，输入数据参考 [data](./data) 目录下的 `sample_*.txt`
 - [*] 写脚本运行这些样例线路 `run_qcir.py`，使用概率测量
 - [ ] 写脚本进行线路化简 `run_qcir_reduce.py`
+
+
+
+### Format Conversions
+
+```
+- QCIS: 用于提交作答的显式表达
+  - https://qc.zdxlz.com/learn/#/resource/informationSpace?lang=zh
+  - https://quantumcomputer.ac.cn/Knowledge/detail/all/e3948e8e0fab45c5adcfc730d0a1a3ba.html
+- isQ-open: 用于模拟器运行的显式表达
+  - 注: isQ-open 是 isQ (不再维护)的阉割版，其文档已被删除，可以看我去年留下的笔记
+  - https://gitee.com/twelve_ze/quantum-chase/tree/master/server/playground/syntax
+  - https://gitee.com/arclight_quantum/isq-core/tree/master/example
+  - https://www.arclightquantum.com/isq-docs/latest/gate/
+- IR: 线路底层语义的中间表示
+- UccsdIR: 含 UCCSD 线路高层语义的中间表示
+```
+
+```
+                       uccsd_ir
+                          ⇅
+example_*.txt ⇌ qcis(θ) ⇌ ir ⇌ CircuitBuilder
+                   |                                 (parameterized)
+-------------------|-------------------------------------------------- [render]
+                   ↓                               (non-parameterized)
+                 qcis → pennylane
+                   ↓
+                  isq
+
+在 parameterized 层面上做什么:
+- compile/transform the circuit for reducing CZ/CNOT gates
+在 non-parameterized 层面上做什么:
+- run the circuit results
+  - pennylane: state, probs, freqs, matrix
+  - isq: state, probs, freqs
+```

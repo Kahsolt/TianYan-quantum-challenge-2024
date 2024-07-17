@@ -2,10 +2,11 @@
 # Author: Armit
 # Create Time: 2024/07/15 
 
-# 解析线路: 模式匹配 & 解压还原
+# UCCSD 模板解析线路: 模式匹配 & 解压还原
 
 from pprint import pprint
 from utils import *
+
 
 @dataclass
 class UccsdBlock:
@@ -17,47 +18,26 @@ class UccsdBlock:
   def __repr__(self):
     return f'<{"SE" if self.type == "s" else "DE"} rots={self.rots} cnot_chain={self.cnot_chain} param={self.param}>'
 
-IR = List[UccsdBlock]
-
-R_INST_CNOT = Regex('CNOT Q(\d+) Q(\d+)')
-R_INST_CZ = Regex('CZ Q(\d+) Q(\d+)')
-R_INST_ROT = Regex('(\w+) Q(\d+)')
-R_INST_RZ = Regex('RZ Q(\d+) (.+)')
-
-def parse_inst_CNOT(inst:str) -> Tuple[int, int]:
-  c, t = R_INST_CNOT.findall(inst)[0]
-  return int(c), int(t)
-
-def parse_inst_CZ(inst:str) -> Tuple[int, int]:
-  c, t = R_INST_CZ.findall(inst)[0]
-  return int(c), int(t)
-
-def parse_inst_RZ(inst:str) -> Tuple[int, str]:
-  q, param = R_INST_RZ.findall(inst)[0]
-  return int(q), param
-
-def parse_inst_ROT(inst:str) -> Tuple[str, int]:
-  g, q = R_INST_ROT.findall(inst)[0]
-  return g, int(q)
+UccsdIR = List[UccsdBlock]
 
 
-def cvt_H_CZ_H_to_CNOT(inst_list:List[str]) -> List[str]:
+def _cvt_H_CZ_H_to_CNOT(qcis_insts:List[str]) -> List[str]:
   inst_list_new = []
   p = 0
-  while p < len(inst_list):
-    if p + 2 < len(inst_list) and inst_list[p] == inst_list[p+2] and inst_list[p].startswith('H') and inst_list[p+1].startswith('CZ'):
-      inst_list_new.append(inst_list[p+1].replace('CZ', 'CNOT'))
+  while p < len(qcis_insts):
+    if p + 2 < len(qcis_insts) and qcis_insts[p] == qcis_insts[p+2] and qcis_insts[p].startswith('H') and qcis_insts[p+1].startswith('CZ'):
+      inst_list_new.append(qcis_insts[p+1].replace('CZ', 'CNOT'))
       p += 3
     else:
-      inst_list_new.append(inst_list[p])
+      inst_list_new.append(qcis_insts[p])
       p += 1
   return inst_list_new
 
-def cvt_CNOT_to_H_CZ_H(inst_list:List[str]) -> List[str]:
+def _cvt_CNOT_to_H_CZ_H(qcis_insts:List[str]) -> List[str]:
   inst_list_new = []
-  for inst in inst_list:
+  for inst in qcis_insts:
     if inst.startswith('CNOT'):
-      c, t = parse_inst_CNOT(inst)
+      _, c, t = parse_inst_Q2(inst)
       inst_list_new.extend([
         f'H Q{t}',
         f'CZ Q{c} Q{t}',
@@ -68,14 +48,12 @@ def cvt_CNOT_to_H_CZ_H(inst_list:List[str]) -> List[str]:
   return inst_list_new
 
 
-# QCIS 转为 UCCSD-IR
-def parse_qcis(qcis:str) -> IR:
-  inst_list = qcis.split('\n')
-  inst_list = cvt_H_CZ_H_to_CNOT(inst_list)
+def qcis_to_uccsdir(qcis:str) -> UccsdIR:
+  inst_list = _cvt_H_CZ_H_to_CNOT(qcis.split('\n'))
 
   def assert_is_dagger(inst1:str, inst2:str):
-    g1, q1 = parse_inst_ROT(inst1)
-    g2, q2 = parse_inst_ROT(inst2)
+    g1, q1 = parse_inst_Q1(inst1)
+    g2, q2 = parse_inst_Q1(inst2)
     if g1 == g2: assert g1 == 'H'
     else: assert {g1, g2} == {'X2P', 'X2M'}
     assert q1 == q2
@@ -104,17 +82,17 @@ def parse_qcis(qcis:str) -> IR:
     # now only care about the L+RZ part
     rots = []
     for inst in Lrot:
-      g, q = parse_inst_ROT(inst)
+      g, q = parse_inst_Q1(inst)
       rots.append((int(q), g))
     assert len(rots) in [2, 4]
     cnots = []
     for inst in Lcnot:
-      q1, q2 = parse_inst_CNOT(inst)
+      _, q1, q2 = parse_inst_Q2(inst)
       cnots.append((q1, q2))
     cnots.sort()
     cnot_chain = make_cnot_chain(cnots)
     if 'rz':
-      q_rz, param = parse_inst_RZ(RZ)
+      _, q_rz, param = parse_inst_Q1P(RZ)
     # check rots seq matches with cnots seq
     assert set(cnot_chain).issuperset({it[0] for it in rots})
     assert cnot_chain[-1] == q_rz   # central qubit
@@ -146,13 +124,7 @@ def parse_qcis(qcis:str) -> IR:
     ir.append(insts_to_block(insts))
   return ir
 
-
-# UCCSD-IR 转为 QCIS
-GATE_DAGGER = {
-  'X2P': 'X2M',
-  'X2M': 'X2P',
-}
-def extract_qcis(ir:IR) -> str:
+def uccsdir_to_qcis(ir:UccsdIR) -> str:
   inst_list = []
   for block in ir:
     if block.type == 's':
@@ -177,20 +149,18 @@ def extract_qcis(ir:IR) -> str:
       inst_list.append(f'CNOT Q{c} Q{t}')
     for rot in reversed(block.rots):
       q, g = rot
-      g = GATE_DAGGER.get(g, g)
+      g = DAGGER_GATE_MAP.get(g, g)
       inst_list.append(f'{g} Q{q}')
-  inst_list = cvt_CNOT_to_H_CZ_H(inst_list)
+  inst_list = _cvt_CNOT_to_H_CZ_H(inst_list)
   return '\n'.join(inst_list)
 
 
 if __name__ == '__main__':
-  for fp in DATA_PATH.iterdir():
-    if not R_SAMPLE_FN.match(fp.name): continue
-
-    print(f'[{fp.stem}]')
-    qcis = load_qcis(fp)
-    ir = parse_qcis(qcis)
-    pprint(ir)
-    qcis_rev = extract_qcis(ir)
-    assert qcis == qcis_rev, f'check failed for {fp.stem}'
+  for i in range(10):
+    print(f'[example_{i}]')
+    qcis = load_qcis_example(i)
+    uccsdir = qcis_to_uccsdir(qcis)
+    pprint(uccsdir)
+    qcis_rev = uccsdir_to_qcis(uccsdir)
+    assert qcis == qcis_rev, f'check failed for example-{i}'
     print()

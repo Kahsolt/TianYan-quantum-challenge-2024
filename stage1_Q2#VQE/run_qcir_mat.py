@@ -2,39 +2,37 @@
 # Author: Armit
 # Create Time: 2024/07/15 
 
-# QCIS 转为 pennylane 线路以查看矩阵
+# 运行 QCIS 线路以查看矩阵 (基于 pennylane 库)
 
 from functools import partial
 from argparse import ArgumentParser
 import pennylane as qml
 import pennylane.transforms as T
 from pennylane.measurements import StateMP
-from parse_qcir import *
+
+import numpy as np
+from parse_qcir import _cvt_H_CZ_H_to_CNOT
 from utils import *
 
-PR = Dict[str, float]
 
 def qcis_to_pennylane(qcis:str) -> Callable[[PR], StateMP]:
-  info = get_circuit_info(qcis)
+  info = qcis_info(qcis)
   dev = qml.device('default.qubit', wires=info.n_qubits)
-  inst_list = cvt_H_CZ_H_to_CNOT(qcis.split('\n'))    # CNOT is more beautiful ;)
+  inst_list = _cvt_H_CZ_H_to_CNOT(qcis.split('\n'))    # CNOT is more beautiful ;)
 
   @qml.qnode(dev)
   def circuit(pr:PR):
     nonlocal inst_list
     for inst in inst_list:
       if inst.startswith('CNOT'):
-        c, t = parse_inst_CNOT(inst)
+        _, c, t = parse_inst_Q2(inst)
         qml.CNOT([c, t])
       elif inst.startswith('RZ'):
-        q, param = parse_inst_RZ(inst)
-        phi = param
-        for k, v in pr.items():
-          phi = phi.replace(k, str(v))    # BUG: this will go wrong when `s_1` and `s_10` both appears
-        phi = eval(phi)
+        _, q, param = parse_inst_Q1P(inst)
+        phi = eval(param, pr)
         qml.RZ(phi, wires=q)
       else:
-        g, q = parse_inst_ROT(inst)
+        g, q = parse_inst_Q1(inst)
         if g == 'H':
           qml.Hadamard(wires=q)
         elif g == 'X2P':
@@ -58,9 +56,9 @@ if __name__ == '__main__':
   else:
     qcis = load_qcis_example(args.I)
 
-  info = get_circuit_info(qcis)
+  info = qcis_info(qcis)
   qnode = qcis_to_pennylane(qcis)
-  pr = { k: 1 for k in  info.param_names }
+  pr = { k: 1 for k in info.param_names }
   qcir_s = qml.draw(qnode, max_length=120)(pr)
   print('[Circuit-original]')
   print(qcir_s)

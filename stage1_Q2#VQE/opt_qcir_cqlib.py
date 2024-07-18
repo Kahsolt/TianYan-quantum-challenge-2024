@@ -50,11 +50,10 @@ H Q1
     print('[qcis_primitive]')
     print(qcis)
 
-  print('>> circuit depth before:', info.n_depth)
   qcis_opt = qcis_simplify(qcis)
   if DEBUG:
     print('[qcis_opt]')
     print(qcis_opt)
   info_opt = qcis_info(qcis_opt)
   r = (info.n_depth - info_opt.n_depth) / info.n_depth
-  print('>> circuit depth after:', info_opt.n_depth, f'({r:.3%}↓)')
+  print(f'>> n_depth: {info.n_depth} -> {info_opt.n_depth} ({r:.3%}↓)')

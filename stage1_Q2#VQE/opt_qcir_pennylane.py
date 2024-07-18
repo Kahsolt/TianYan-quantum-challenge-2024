@@ -3,7 +3,13 @@
 # Create Time: 2024/07/18
 
 # 借助 pennylane 库进行线路化简 (能对消最基本的相邻互逆)
+# 借助 pennylane 库进行含参线路化简
+# 1. 分割线路为 含参段vqc 和 无参段qc
+# 2. 对 qc 段进行 默认组合 化简
+# 3. 重新粘接 vqc 和 qc 段
+# 4. 重复上述步骤直到线路深度不再减小
 
+from copy import deepcopy
 from argparse import ArgumentParser
 
 import numpy as np
@@ -93,25 +99,69 @@ def qcis_simplify(qcis:str, log:bool=False) -> str:
   return qcis
 
 
+def qcis_simplify_vqc(qcis:str) -> str:
+  inst_list = qcis.split('\n')
+  inst_list_new = []
+  qc_seg = []
+
+  def handle_qc_seg():
+    if len(qc_seg) >= 2:
+      qc_seg_new = qcis_simplify('\n'.join(qc_seg)).split('\n')
+    else:
+      qc_seg_new = deepcopy(qc_seg)
+    inst_list_new.extend(qc_seg_new)
+    qc_seg.clear()
+
+  for inst in inst_list:
+    if is_inst_Q2(inst):
+      qc_seg.append(inst)
+    elif is_inst_Q1P(inst):
+      handle_qc_seg()
+      inst_list_new.append(inst)
+    elif is_inst_Q1(inst):
+      qc_seg.append(inst)
+    else:
+      raise ValueError(inst)
+  handle_qc_seg()
+  return '\n'.join(inst_list_new)
+
+
 if __name__ == '__main__':
   parser = ArgumentParser()
   parser.add_argument('-I', type=int, default=0, help='example circuit index number')
   parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
+  parser.add_argument('--repeat', default=1, type=int, help='optimizing n_repeats')
+  parser.add_argument('--render', action='store_true', help='do render before optimizing')
+  parser.add_argument('--save', action='store_true', help='save optimized circuit')
   parser.add_argument('--show', action='store_true', help='draw optimized circuit')
   args = parser.parse_args()
 
+  if args.show: assert args.render
+
   if args.fp:
     qcis = load_qcis(args.fp)
+    in_fp = Path(args.fp)
   else:
     qcis = load_qcis_example(args.I)
+    in_fp = DATA_PATH / f'example_{args.I}.txt'
   info = qcis_info(qcis)
-  qcis = render_qcis(qcis, {k: 1 for k in info.param_names})
 
-  print('>> circuit depth before:', info.n_depth)
-  qcis_opt = qcis_simplify(qcis)
+  if args.render:
+    qcis = render_qcis(qcis, {k: 1 for k in info.param_names})
+    simplify_func = qcis_simplify
+  else:
+    simplify_func = qcis_simplify_vqc
+
+  qcis_opt = simplify_func(qcis)
   info_opt = qcis_info(qcis_opt)
   r = (info.n_depth - info_opt.n_depth) / info.n_depth
-  print('>> circuit depth after:', info_opt.n_depth, f'({r:.3%}↓)')
+  print(f'>> n_depth: {info.n_depth} -> {info_opt.n_depth} ({r:.3%}↓)')
+
+  if args.save:
+    OUT_PATH.mkdir(exist_ok=True, parents=True)
+    out_fp = OUT_PATH / in_fp.name
+    print(f'>> save to {out_fp}')
+    save_qcis(qcis_opt, out_fp)
 
   if args.show:
     qnode = qcis_to_pennylane(qcis_opt)

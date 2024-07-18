@@ -19,6 +19,7 @@ def verify_unitary_equivalent(mat_A:ndarray, mat_B:ndarray, repeat:int=10, eps:f
     psi_B = mat_B @ phi
     fid = np.abs(np.dot(psi_A.conj().T, psi_B))
     if not np.isclose(fid, 1.0, atol=eps):
+      print(f'>> fidelity: {fid}')
       return False
   return True
 
@@ -55,9 +56,9 @@ if __name__ == '__main__':
     tot += 1
     is_ok = verify_unitary_equivalent(mat_A, mat_B) 
     if is_ok:
-      print(f'<< exampe-{i} passed: {info_A.n_depth} -> {info_B.n_depth}')
+      print(f'passed: {info_A.n_depth} -> {info_B.n_depth}')
       ok += 1
     else:
-      print(f'<< exampe-{i} FAILED')
+      print(f'FAILED!!')
   
   print(f'>> total: {tot}, pass: {ok}, fail: {tot - ok}')

@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+# Author: Armit
+# Create Time: 2024/07/18
+
+# 借助 pennylane 库进行线路化简 (能对消最基本的相邻互逆)
+
+from argparse import ArgumentParser
+
+import numpy as np
+import pennylane as qml
+import pennylane.transforms as T
+from pennylane.tape import QuantumTape
+from pennylane.measurements import StateMP
+
+from run_qcir_mat import qcis_to_pennylane
+from parse_qcir import _cvt_H_CZ_H_to_CNOT, _cvt_CNOT_to_H_CZ_H
+from utils import *
+
+
+def qcis_to_qtape(qcis:str) -> QuantumTape:
+  inst_list = _cvt_H_CZ_H_to_CNOT(qcis.split('\n'))    # CNOT is more beautiful ;)
+  ops: List[qml.Operation] = []
+  for inst in inst_list:
+    if is_inst_Q2(inst):
+      g, c, t = parse_inst_Q2(inst)
+      ops.append(getattr(qml, g)([c, t]))
+    elif is_inst_Q1P(inst):
+      g, q, phi = parse_inst_Q1P(inst)
+      ops.append(getattr(qml, g)(phi, wires=q))
+    else:
+      g, q = parse_inst_Q1(inst)
+      if   g == 'H':   ops.append(qml.Hadamard(wires=q))
+      elif g == 'X2P': ops.append(qml.RX( np.pi/2, wires=q))
+      elif g == 'X2M': ops.append(qml.RX(-np.pi/2, wires=q))
+      elif g == 'Y2P': ops.append(qml.RY( np.pi/2, wires=q))
+      elif g == 'Y2M': ops.append(qml.RY(-np.pi/2, wires=q))
+      else: raise ValueError(inst)
+  return QuantumTape(ops, [qml.state()])
+
+
+def qtape_to_qcis(qtape:QuantumTape) -> str:
+  ir: List[Inst] = []
+  for op in qtape:
+    if isinstance(op, StateMP): continue
+    if op.name == 'CNOT':
+      ir.append(Inst('CNOT', op.wires[1], control_qubit=op.wires[0]))
+    elif op.name == 'Hadamard':
+      ir.append(Inst('H', op.wires[0]))
+    elif op.name == 'RZ':
+      p = op.data[0]
+      ir.append(Inst('RZ', op.wires[0], param=p))
+    elif op.name == 'RX':
+      p = op.data[0]
+      if   isclose(p,  pi/2): ir.append(Inst('X2P', op.wires[0]))
+      elif isclose(p, -pi/2): ir.append(Inst('X2M', op.wires[0]))
+      else:                   ir.append(Inst('RX', op.wires[0], param=p))
+    elif op.name == 'RY':
+      p = op.data[0]
+      if   isclose(p,  pi/2): ir.append(Inst('Y2P', op.wires[0]))
+      elif isclose(p, -pi/2): ir.append(Inst('Y2M', op.wires[0]))
+      else:                   ir.append(Inst('RY', op.wires[0], param=p))
+  inst_list = _cvt_CNOT_to_H_CZ_H([inst.to_qcis() for inst in ir])
+  return '\n'.join(inst_list)
+
+
+def qcis_simplify(qcis:str) -> str:
+  qtape = qcis_to_qtape(qcis)
+  print('>> qtape length before:', len(qtape))
+  qtapes, func_postprocess = qml.compile(
+    qtape,
+    pipeline=[
+      T.commute_controlled,
+      T.cancel_inverses,
+      T.merge_rotations,
+    ],
+    basis_set=["CNOT", "CZ", "Hadamard", "RX", "RY", "RZ"],
+    num_passes=10,
+  )
+  qtape_compiled = func_postprocess(qtapes)
+  r = (len(qtape) - len(qtape_compiled)) / len(qtape)
+  print('>> qtape length after:', len(qtape_compiled), f'({r:.3%}↓)')
+  qcis = qtape_to_qcis(qtape_compiled)
+  return qcis
+
+
+if __name__ == '__main__':
+  parser = ArgumentParser()
+  parser.add_argument('-I', type=int, default=0, help='example circuit index number')
+  parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
+  parser.add_argument('--show', action='store_true', help='draw optimized circuit')
+  args = parser.parse_args()
+
+  if args.fp:
+    qcis = load_qcis(args.fp)
+  else:
+    qcis = load_qcis_example(args.I)
+  info = qcis_info(qcis)
+  qcis = render_qcis(qcis, {k: 1 for k in info.param_names})
+
+  print('>> circuit depth before:', info.n_depth)
+  qcis_opt = qcis_simplify(qcis)
+  info_opt = qcis_info(qcis_opt)
+  r = (info.n_depth - info_opt.n_depth) / info.n_depth
+  print('>> circuit depth after:', info_opt.n_depth, f'({r:.3%}↓)')
+
+  if args.show:
+    qnode = qcis_to_pennylane(qcis_opt)
+    qcir_c_s = qml.draw(qnode, max_length=120)()
+    print('[Circuit-compiled]')
+    print(qcir_c_s)

@@ -4,13 +4,12 @@
 
 # 运行 QCIS 线路以查看矩阵 (基于 pennylane 库)
 
-from functools import partial
 from argparse import ArgumentParser
-import pennylane as qml
-import pennylane.transforms as T
-from pennylane.measurements import StateMP
 
 import numpy as np
+import pennylane as qml
+from pennylane.measurements import StateMP
+
 from parse_qcir import _cvt_H_CZ_H_to_CNOT
 from utils import *
 
@@ -21,7 +20,7 @@ def qcis_to_pennylane(qcis:str) -> Callable[[PR], StateMP]:
   inst_list = _cvt_H_CZ_H_to_CNOT(qcis.split('\n'))    # CNOT is more beautiful ;)
 
   @qml.qnode(dev)
-  def circuit(pr:PR):
+  def circuit(pr:PR=None):
     nonlocal inst_list
     for inst in inst_list:
       if inst.startswith('CNOT'):
@@ -29,7 +28,10 @@ def qcis_to_pennylane(qcis:str) -> Callable[[PR], StateMP]:
         qml.CNOT([c, t])
       elif inst.startswith('RZ'):
         _, q, param = parse_inst_Q1P(inst)
-        phi = eval(param, pr)
+        if isinstance(param, str):
+          phi = eval(param, pr)
+        else:
+          phi = param
         qml.RZ(phi, wires=q)
       else:
         g, q = parse_inst_Q1(inst)
@@ -43,6 +45,11 @@ def qcis_to_pennylane(qcis:str) -> Callable[[PR], StateMP]:
           raise ValueError(g)
     return qml.state()
   return circuit
+
+
+def qcis_to_mat(qcis:str, pr:PR=None) -> ndarray:
+  qnode = qcis_to_pennylane(qcis)
+  return qml.matrix(qnode)(pr)
 
 
 if __name__ == '__main__':
@@ -59,24 +66,9 @@ if __name__ == '__main__':
   info = qcis_info(qcis)
   qnode = qcis_to_pennylane(qcis)
   pr = { k: 1 for k in info.param_names }
-  qcir_s = qml.draw(qnode, max_length=120)(pr)
-  print('[Circuit-original]')
-  print(qcir_s)
-  print()
-
-  qnode_compiled = qml.compile(
-    qnode,
-    pipeline=[
-      partial(T.commute_controlled, direction="left"),
-      partial(T.merge_rotations, atol=1e-6),
-      T.cancel_inverses,
-    ],
-    basis_set=["CNOT", "RX", "Hadamard", "RZ"],
-    num_passes=10,
-  )
-  qcir_c_s = qml.draw(qnode_compiled, max_length=120)(pr)
-  print('[Circuit-compiled]')
-  print(qcir_c_s)
+  qcir = qml.draw(qnode, max_length=120)(pr)
+  print('[Circuit]')
+  print(qcir)
   print()
 
   '''
@@ -99,5 +91,5 @@ if __name__ == '__main__':
   [0.      0.      0.      0.      0.      0.      0.      0.      0.       0.       0.      0.      0.      0.      0.      1.]    # |1111>
   '''
   mat = qml.matrix(qnode)(pr)
-  print(f'[Circuit-Matrix] {mat.shape}')
+  print(f'[Matrix] {mat.shape}')
   print(mat.round(4).real)

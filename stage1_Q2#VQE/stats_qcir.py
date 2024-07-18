@@ -4,8 +4,8 @@
 
 # 查看 QCIS 线路基本信息
 
-from utils import *
 from parse_qcir import qcis_to_uccsdir
+from utils import *
 
 
 if __name__ == '__main__':

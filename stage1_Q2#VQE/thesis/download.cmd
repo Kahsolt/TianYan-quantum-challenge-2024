@@ -27,3 +27,15 @@ wget -nc https://arxiv.org/pdf/1306.3991.pdf
 
 REM Automatic Depth-Optimized Quantum Circuit Synthesis for Diagonal Unitary Matrices with Asymptotically Optimal Gate Count
 wget -nc https://arxiv.org/pdf/2212.01002.pdf
+
+
+REM The ZX-calculus
+REM https://zxcalculus.com/
+REM https://en.wikipedia.org/wiki/ZX-calculus
+REM https://pennylane.ai/qml/demos/tutorial_zx_calculus/
+
+REM ZX-calculus for the working quantum computer scientist
+wget -nc https://arxiv.org/pdf/2012.13966.pdf
+
+REM Basic ZX-calculus for students and professionals
+wget -nc https://arxiv.org/pdf/2303.03163.pdf

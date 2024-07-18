@@ -2,15 +2,24 @@
 # Author: Armit
 # Create Time: 2024/07/03 
 
+import random
 from pathlib import Path
 from re import compile as Regex
 from dataclasses import dataclass
 from typing import *
 
+import numpy as np
+from numpy import ndarray
+from numpy import pi
+
 BASE_PATH = Path(__file__).parent
 DATA_PATH = BASE_PATH / 'data'
 
+EPS = 1e-5
+
 mean = lambda x: sum(x) / len(x) if len(x) else 0.0
+isclose = lambda x, y: np.isclose(x, y, atol=EPS)
+allclose = lambda x, y: np.allclose(x, y, atol=EPS)
 
 
 ''' Const '''
@@ -38,6 +47,7 @@ class GateInfo:
 # contest limited gates
 # https://qc.zdxlz.com/learn/#/resource/informationSpace?lang=zh
 GATES = {
+  'I':   GateInfo('I', 1, 0),
   'X':   GateInfo('X', 1, 0),
   'Y':   GateInfo('Y', 1, 0),
   'Z':   GateInfo('Z', 1, 0),
@@ -63,6 +73,7 @@ PSEUDO_GATES = {
 }
 PRIMITIVE_GATES = [
   'X2P', 'X2M', 'Y2P', 'Y2M', 'CZ', 'RZ',
+  'XY2P', 'XY2M', 'I', 'B',
 ]
 DAGGER_GATE_MAP = {
   'X2P': 'X2M',
@@ -146,6 +157,8 @@ class CircuitInfo:
 
 
 def get_circuit_depth_from_edge_list(edges:List[Tuple[int, int]]) -> int:
+  if not edges: return 0
+
   max_qid = -1
   for u, v in edges:
     max_qid = max(max_qid, max(u, v))
@@ -217,7 +230,7 @@ class Inst:
     if self.is_Q2:
       return f'{self.gate} Q{self.control_qubit} Q{self.target_qubit}'
     if self.is_Q1P:
-      return f'{self.gate} Q{self.target_qubit} Q{self.param}'
+      return f'{self.gate} Q{self.target_qubit} {self.param}'
     if self.is_Q1:
       return f'{self.gate} Q{self.target_qubit}'
     raise NotImplementedError(self)
@@ -329,3 +342,62 @@ def render_qcis(qcis:str, pr:PR) -> str:
       inst_list.append(f'{gate_type} {qidx} {eval(args[0], pr)}')
 
   return '\n'.join(inst_list)
+
+def primitive_qcis(qcis:str) -> str:
+  ir = qcis_to_ir(qcis)
+
+  ir_new = []
+  for inst in ir:
+    if inst.gate in PRIMITIVE_GATES:
+      ir_new.append(inst)
+      continue
+
+    if inst.gate == 'X':
+      ir_new.extend([
+        Inst('X2P', inst.target_qubit),
+        Inst('X2P', inst.target_qubit),
+      ])
+    elif inst.gate == 'Y':
+      ir_new.extend([
+        Inst('Y2P', inst.target_qubit),
+        Inst('Y2P', inst.target_qubit),
+      ])
+    elif inst.gate == 'S':
+      ir_new.append(Inst('RZ', inst.target_qubit, pi/2))
+    elif inst.gate == 'SD':
+      ir_new.append(Inst('RZ', inst.target_qubit, -pi/2))
+    elif inst.gate == 'T':
+      ir_new.append(Inst('RZ', inst.target_qubit, pi/4))
+    elif inst.gate == 'TD':
+      ir_new.append(Inst('RZ', inst.target_qubit, -pi/4))
+    elif inst.gate == 'Z':
+      ir_new.append(Inst('RZ', inst.target_qubit, pi))
+    elif inst.gate == 'H':
+      if random.random() < 0.5:
+        ir_new.extend([
+          Inst('RZ', inst.target_qubit, pi),
+          Inst('Y2P', inst.target_qubit),
+        ])
+      else:
+        ir_new.extend([
+          Inst('Y2M', inst.target_qubit),
+          Inst('RZ', inst.target_qubit, pi),
+        ])
+    elif inst.gate == 'RX':
+      ir_new.extend([
+        Inst('RZ', inst.target_qubit, pi/2),
+        Inst('X2P', inst.target_qubit),
+        Inst('RZ', inst.target_qubit, inst.param),
+        Inst('X2M', inst.target_qubit),
+        Inst('RZ', inst.target_qubit, -pi/2),
+      ])
+    elif inst.gate == 'RY':
+      ir_new.extend([
+        Inst('X2P', inst.target_qubit),
+        Inst('RZ', inst.target_qubit, inst.param),
+        Inst('X2M', inst.target_qubit),
+      ])
+    else:
+      raise ValueError(inst)
+
+  return ir_to_qcis(ir_new)

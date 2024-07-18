@@ -1,0 +1,4 @@
+pennylane
+pyzx
+cqlib
+isqopen

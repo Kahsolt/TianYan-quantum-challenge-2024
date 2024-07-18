@@ -6,9 +6,10 @@
 
 from ast import literal_eval
 from argparse import ArgumentParser
-from isq.device import LocalDevice
+
 import numpy as np
 from numpy import ndarray
+from isq.device import LocalDevice
 
 from render_qcir import render_qcis
 from utils import *

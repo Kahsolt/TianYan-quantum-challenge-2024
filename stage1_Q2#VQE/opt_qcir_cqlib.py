@@ -22,7 +22,7 @@ if __name__ == '__main__':
   parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
   args = parser.parse_args()
 
-  DEBUG = True
+  DEBUG = False
 
   if DEBUG:
     qcis = '''

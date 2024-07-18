@@ -23,26 +23,26 @@ def qcis_to_pennylane(qcis:str) -> Callable[[PR], StateMP]:
   def circuit(pr:PR=None):
     nonlocal inst_list
     for inst in inst_list:
-      if inst.startswith('CNOT'):
-        _, c, t = parse_inst_Q2(inst)
-        qml.CNOT([c, t])
-      elif inst.startswith('RZ'):
-        _, q, param = parse_inst_Q1P(inst)
-        if isinstance(param, str):
-          phi = eval(param, pr)
-        else:
-          phi = param
-        qml.RZ(phi, wires=q)
+      if inst.startswith('CNOT') or inst.startswith('CZ'):
+        g, c, t = parse_inst_Q2(inst)
+        getattr(qml, g)([c, t])
+      elif inst.startswith('RX') or inst.startswith('RY') or inst.startswith('RZ'):
+        g, q, param = parse_inst_Q1P(inst)
+        phi = eval(param, pr) if isinstance(param, str) else param
+        getattr(qml, g)(phi, wires=q)
       else:
         g, q = parse_inst_Q1(inst)
-        if g == 'H':
-          qml.Hadamard(wires=q)
-        elif g == 'X2P':
-          qml.RX(np.pi/2, wires=q)
-        elif g == 'X2M':
-          qml.RX(-np.pi/2, wires=q)
-        else:
-          raise ValueError(g)
+        if   g == 'H':   qml.Hadamard(wires=q)
+        elif g == 'X':   qml.X(wires=q)
+        elif g == 'Y':   qml.Y(wires=q)
+        elif g == 'Z':   qml.Z(wires=q)
+        elif g == 'X2P': qml.RX(np.pi/2, wires=q)
+        elif g == 'X2M': qml.RX(-np.pi/2, wires=q)
+        elif g == 'S':   qml.S(wires=q)
+        elif g == 'SD':  qml.adjoint(qml.S(wires=q))
+        elif g == 'T':   qml.T(wires=q)
+        elif g == 'TD':  qml.adjoint(qml.T(wires=q))
+        else: raise ValueError(g)
     return qml.state()
   return circuit
 

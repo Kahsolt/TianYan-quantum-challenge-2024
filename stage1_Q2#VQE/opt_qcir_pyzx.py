@@ -14,23 +14,26 @@ from opt_qcir_pennylane import *
 
 
 # https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
-def qcis_simplify(qcis:str, method:str='full') -> str:
+def qcis_simplify(qcis:str, method:str='full', log:bool=False) -> str:
   qtape = qcis_to_qtape(qcis)
-  print('>> qtape length before:', len(qtape))
+  if log: print('>> qtape length before:', len(qtape))
   g: GraphS = to_zx(qtape)
+  c = zx.Circuit.from_graph(g)
   if method == 'full':
-    zx.full_reduce(g, quiet=False)
+    zx.full_reduce(g, quiet=not log)
     c_opt = zx.extract_circuit(g.copy())
     g_opt = c_opt.to_graph()
   elif method == 'teleport':
-    zx.teleport_reduce(g, quiet=False)
-    #c_opt = zx.Circuit.from_graph(g)
+    zx.teleport_reduce(g, quiet=not log)
+    c_opt = zx.Circuit.from_graph(g)
     g_opt = g
+  #assert c.verify_equality(c_opt), breakpoint()
   qtape_opt = from_zx(g_opt)
-  r = (len(qtape) - len(qtape_opt)) / len(qtape)
-  print('>> qtape length after:', len(qtape_opt), f'({r:.3%}↓)')
-  qcis = qtape_to_qcis(qtape_opt)
-  return qcis
+  if log:
+    r = (len(qtape) - len(qtape_opt)) / len(qtape)
+    print('>> qtape length after:', len(qtape_opt), f'({r:.3%}↓)')
+  qcis_opt = qtape_to_qcis(qtape_opt)
+  return qcis_opt
 
 
 if __name__ == '__main__':

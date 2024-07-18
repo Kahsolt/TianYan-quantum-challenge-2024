@@ -14,6 +14,7 @@ from numpy import pi
 
 BASE_PATH = Path(__file__).parent
 DATA_PATH = BASE_PATH / 'data'
+OUT_PATH = BASE_PATH / 'out'
 
 EPS = 1e-5
 
@@ -64,6 +65,8 @@ GATES = {
   'T':   GateInfo('T', 1, 0),
   'TD':  GateInfo('TD', 1, 0),   # T.dagger
   'CZ':  GateInfo('CZ', 2, 0),
+  # extend
+  'CNOT':  GateInfo('CNOT', 2, 0),
 }
 BARRIER_GATE = 'B'
 MEASURE_GATE = 'M'
@@ -184,14 +187,16 @@ def qcis_info(qcis:str) -> CircuitInfo:
     q0 = parse_inst_qid(qidx)
     qubit_ids.add(q0)
     if GATES[gate_type].n_params == 1:
-      param_names.add(parse_inst_param_name(args[0]))
+      pname = parse_inst_param_name(args[0])
+      try: _ = float(pname)
+      except: param_names.add(pname)
     if gate_type in ['CZ', 'CNOT']:
       q1 = parse_inst_qid(args[0])
       qubit_ids.add(q1)
       edges.append((q0, q1))
 
   # assure circuit is compact, no need to squeeze un-used qubits
-  assert max(qubit_ids) + 1 == len(qubit_ids), breakpoint()
+  #assert max(qubit_ids) + 1 == len(qubit_ids), breakpoint()
 
   return CircuitInfo(
     n_qubits=len(qubit_ids), 

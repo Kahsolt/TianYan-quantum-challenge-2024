@@ -29,3 +29,37 @@ def test():
 print('[test]')
 mat0 = qml.matrix(test)()
 print(mat0.round(4).real)
+
+
+@qml.qnode(qml.device('default.qubit', wires=3))
+def test():
+  '''
+  |0>--X2P--o-------
+            |
+  |0>-----H-o-H-o---
+                |
+  |0>---H-----H-o-H-
+
+  [ 0.5  0.5  0.   0.   0.   0.   0.   0. ]
+  [ 0.5 -0.5  0.   0.   0.   0.   0.   0. ]
+  [ 0.   0.   0.5 -0.5  0.   0.   0.   0. ]
+  [ 0.   0.   0.5  0.5  0.   0.   0.   0. ]
+  [ 0.   0.   0.   0.   0.   0.   0.5  0.5]
+  [ 0.   0.   0.   0.   0.   0.   0.5 -0.5]
+  [ 0.   0.   0.   0.   0.5 -0.5  0.   0. ]
+  [ 0.   0.   0.   0.   0.5  0.5  0.   0. ]
+  '''
+  qml.Hadamard(2)
+  qml.RX(np.pi/2, 0)
+  qml.Hadamard(1)
+  qml.CZ([0, 1])
+  qml.Hadamard(1)
+  qml.Hadamard(2)
+  qml.CZ([1, 2])
+  qml.Hadamard(2)
+  return qml.state()
+
+
+print('[test]')
+mat0 = qml.matrix(test)()
+print(mat0.round(4).real)

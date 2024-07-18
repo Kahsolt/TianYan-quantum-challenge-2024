@@ -15,16 +15,22 @@
 
 #### install
 
-- `conda create -n q python==3.9`
-  - 版本固定 3.9, 否则你会被这些自制库的兼容性干烂 :(
+- `conda create -n q python==3.10`
+  - 版本固定 3.10, 否则你会被这些自制库的兼容性干烂 :(
 - `conda activate q`
-- `pip install pennylane`
-- `pip install isqopen` (弧光量子)
-- `pip install pyqpanda` (本源量子)
+- 下列依赖项可以酌情安装，具体查看各文件夹里的 requirements.txt
+  - `pip install pennylane pyzx`
+  - `pip install cqlib` (中电信/国盾量子)
+    - ⚠ 依赖 python>=3.10
+  - `pip install isqopen` (弧光量子)
+    - python 3.8+
+  - `pip install pyqpanda` (本源量子)
+    - python 3.8+
 
 
 #### reference
 
+- cqlib: [https://cqlib.readthedocs.io/en/latest/](https://cqlib.readthedocs.io/en/latest/)
 - isQ: [https://www.arclightquantum.com/isq-docs/latest/](https://www.arclightquantum.com/isq-docs/latest/)
   - grammar: [https://www.arclightquantum.com/isq-docs/latest/grammar/](https://www.arclightquantum.com/isq-docs/latest/grammar/)
   - binary-release: [https://www.arclightquantum.com/isq-releases/isqc-standalone/](https://www.arclightquantum.com/isq-releases/isqc-standalone/)

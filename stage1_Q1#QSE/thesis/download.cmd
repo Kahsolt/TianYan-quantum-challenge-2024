@@ -1,19 +1,16 @@
 @ECHO OFF
 
-REM Add paper title and downloadable urls here!!
-REM For arxiv links, be careful when you need a suffix .pdf:
-REM    REM Verifying Multipartite Entangled GHZ States via Multiple Quantum Coherences
-REM    wget -nc https://arxiv.org/pdf/1905.05720.pdf
-REM    wget -nc https://arxiv.org/pdf/1905.05720 -O 1905.05720.pdf
-REM For researchgate, the url already ends up with a file name
-REM    REM High-performance combinatorial optimization based on classical mechanics
-REM    wget -nc https://www.researchgate.net/publication/349022706_High-performance_combinatorial_optimization_based_on_classical_mechanics/fulltext/60a30487458515952dd25638/High-performance-combinatorial-optimization-based-on-classical-mechanics.pdf
-REM For other links that cannot download, just prefix with a REM
-REM    REM QAOA 量子近似优化算法介绍
-REM    REM https://zhuanlan.zhihu.com/p/343687041
-
 REM Characterizing Quantum Supremacy in Near-Term Devices
 wget -nc https://arxiv.org/pdf/1608.00263.pdf
 
 REM Cross-entropy benchmarking
 REM https://en.wikipedia.org/wiki/Cross-entropy_benchmarking
+
+REM CNOT Circuit Extraction for Topologically-constrained Quantum Memories
+wget -nc https://arxiv.org/pdf/1904.00633.pdf
+
+REM Efficient Synthesis of Linear Reversible Circuits
+wget -nc https://arxiv.org/pdf/quant-ph/0302002.pdf
+
+REM Tackling the Qubit Mapping Problem for NISQ-Era Quantum Devices
+wget -nc https://arxiv.org/pdf/1809.02573.pdf

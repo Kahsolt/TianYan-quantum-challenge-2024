@@ -4,7 +4,6 @@
 
 # 校验化简线路的矩阵等价性
 
-from copy import deepcopy
 from argparse import ArgumentParser
 
 from run_qcir_mat import *

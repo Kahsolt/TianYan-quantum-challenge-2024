@@ -1,4 +1,2 @@
 pennylane
 pyzx
-cqlib
-isqopen

@@ -155,7 +155,7 @@ def qcis_simplify_vqc_nonseg(qcis:str) -> str:
       if isinstance(op, StateMP): continue
       if op.name == 'RZ':
         op.data = RZ_memo.pop(0)
-    assert not len(RZ_memo), breakpoint()
+    assert not len(RZ_memo)
 
   qcis = qtape_to_qcis(qtape_compiled)
   return qcis

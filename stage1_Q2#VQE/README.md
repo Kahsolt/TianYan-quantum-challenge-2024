@@ -2,6 +2,13 @@
 
 ----
 
+### Solution
+
+原理: commute_controlled + cancel_inverses + merge_rotations + ZX-Calculus reduction  
+创新: 方法融合 + 类遗传算法的搜索-淘汰选择机制  
+第三方库依赖: pennylane + pyzx
+
+
 ### Quick start
 
 ⚪ install
@@ -18,6 +25,15 @@
   - `python opt_vqcir.py -I <index> --nonseg`
   - see output at `out\example_<index>.txt`
 - verify correctness: `python verify_solut.py -I <index>`
+
+⚪ submit (`example_0.txt`)
+
+- `python run_qcir_submit_example0.py`
+  - 线路ID: 1814268150677946369
+  - 任务ID
+   - 模拟: 1814269803330191361
+   - 真机: 1814269870715879426
+  - 各比特在 Z 轴上的平均投影: `[0.1324 -0.0808  0.0864 -0.3168] (Q45 Q50 Q44 Q49)`
 
 
 ### Experiments
@@ -37,6 +53,13 @@
 | example_7 | 1090 | 1034  (5.138%↓) |  958 (12.110%↓) |  947 (13.119%↓) | << |
 | example_8 | 1272 | 1216  (4.403%↓) | 1114 (12.421%↓) | 1099 (13.601%↓) | << |
 | example_9 | 1330 | 1274  (4.211%↓) | 1158 (12.932%↓) | 1145 (13.910%↓) | << |
+
+
+⚪ example_0.txt
+
+| Simulator | Real Chip |
+| :-: | :-: |
+| ![sim-example_0.png](./img/sim-example_0.png) | ![realchip-example_0.png](./img/realchip-example_0.png) |
 
 
 #### refenreces

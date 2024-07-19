@@ -37,8 +37,10 @@ def run(args, qcis:str) -> str:
     popl_new = []
     for _, qcis in popl:
       for simplify_func in simplifiers:
-        qcis_new = simplify_func(qcis, info.n_qubits)
-        popl_new.append((qcis_depth(qcis_new), qcis_new))
+        try:
+          qcis_new = simplify_func(qcis, info.n_qubits)
+          popl_new.append((qcis_depth(qcis_new), qcis_new))
+        except: pass
 
     # merge, shuffule, rank, kill, swap
     popl_all = popl + popl_new
@@ -52,7 +54,8 @@ def run(args, qcis:str) -> str:
       break
     depth_rank_last = depth_rank
 
-  return popl[0][1]
+  best_qcis = popl[0][1]
+  return qcis_simplify_vqc_pennylane(best_qcis)    # assure no adjacent inverses :)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,8 @@
 
 REM GOTO pennylane
 REM GOTO pyzx
-GOTO fuse
+REM GOTO fuse
+GOTO fuse-nonseg
 
 
 :cqlib
@@ -36,6 +37,14 @@ ECHO [Run fuse]
 FOR /L %%I IN (0,1,9) DO (
   ECHO sample-%%I
   python opt_vqcir.py -I %%I
+)
+ECHO.
+
+:fuse-nonseg
+ECHO [Run fuse_nonseg]
+FOR /L %%I IN (0,1,9) DO (
+  ECHO sample-%%I
+  python opt_vqcir.py -I %%I --nonseg
 )
 ECHO.
 

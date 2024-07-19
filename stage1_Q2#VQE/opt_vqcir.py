@@ -8,6 +8,7 @@ import random
 
 from opt_qcir_pennylane import *
 from opt_qcir_pennylane import qcis_simplify_vqc as qcis_simplify_vqc_pennylane
+from opt_qcir_pennylane import qcis_simplify_vqc_nonseg as qcis_simplify_vqc_pennylane_nonseg
 from opt_qcir_pyzx import *
 from opt_qcir_pyzx import qcis_simplify_vqc as qcis_simplify_vqc_pyzx
 
@@ -19,6 +20,10 @@ def run(args, qcis:str) -> str:
     lambda qcis, nq: qcis_simplify_vqc_pyzx(qcis, nq),
     lambda qcis, nq: qcis_simplify_vqc_pyzx(qcis, nq, H_CZ_H_to_CNOT=True),
   ]
+  if args.nonseg:
+    simplifiers.append(
+      lambda qcis, nq: qcis_simplify_vqc_pennylane_nonseg(qcis),
+    )
 
   # init: (delpth, qcis)
   info = qcis_info(qcis)
@@ -55,8 +60,9 @@ if __name__ == '__main__':
   parser.add_argument('-I', type=int, default=0, help='example circuit index number')
   parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
   parser.add_argument('-M', '--method', default='full', choices=['full', 'teleport', 'opt'], help='pyxz reduce method')
-  parser.add_argument('-N', '--population', default=5, help='max keep population')
+  parser.add_argument('-N', '--population', default=7, help='max keep population')
   parser.add_argument('--repeat', default=3, help='repeat optimizing times')
+  parser.add_argument('--nonseg', action='store_true', help='use nonseg trick')
   args = parser.parse_args()
 
   if args.fp:

@@ -3,6 +3,7 @@
 # Create Time: 2024/07/03 
 
 import random
+from copy import deepcopy
 from pathlib import Path
 from re import compile as Regex
 from dataclasses import dataclass
@@ -335,6 +336,7 @@ def render_ir(ir:IR, pr:PR) -> IR:
 
 def render_qcis(qcis:str, pr:PR) -> str:
   info = qcis_info(qcis)
+  pr = deepcopy(pr)   # avoid pollution
 
   # check
   param_need = set(info.param_names)

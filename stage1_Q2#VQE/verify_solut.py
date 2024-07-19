@@ -49,8 +49,8 @@ if __name__ == '__main__':
     info_B = qcis_info(qcis_B)
     assert info_A.param_names == info_B.param_names, breakpoint()
     pr = {k: random.uniform(-pi, pi) for k in info_A.param_names}
-    qcis_A = render_qcis(qcis_A, deepcopy(pr))
-    qcis_B = render_qcis(qcis_B, deepcopy(pr))
+    qcis_A = render_qcis(qcis_A, pr)
+    qcis_B = render_qcis(qcis_B, pr)
 
     tot += 1
     is_ok = verify_qcis_equivalent(qcis_A, qcis_B) 

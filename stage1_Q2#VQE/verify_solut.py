@@ -10,7 +10,9 @@ from argparse import ArgumentParser
 from run_qcir_mat import *
 
 
-def verify_unitary_equivalent(mat_A:ndarray, mat_B:ndarray, repeat:int=10, eps:float=1e-2) -> bool:
+def verify_qcis_equivalent(qcis_A:str, qcis_B:str, repeat:int=10, eps:float=1e-2) -> bool:
+  mat_A = qcis_to_mat(qcis_A)
+  mat_B = qcis_to_mat(qcis_B)
   assert mat_A.shape == mat_B.shape
   for _ in range(repeat):
     phi = np.random.uniform(-pi, pi, size=mat_A.shape[1])
@@ -50,11 +52,8 @@ if __name__ == '__main__':
     qcis_A = render_qcis(qcis_A, deepcopy(pr))
     qcis_B = render_qcis(qcis_B, deepcopy(pr))
 
-    mat_A = qcis_to_mat(qcis_A)
-    mat_B = qcis_to_mat(qcis_B)
-
     tot += 1
-    is_ok = verify_unitary_equivalent(mat_A, mat_B) 
+    is_ok = verify_qcis_equivalent(qcis_A, qcis_B) 
     if is_ok:
       print(f'passed: {info_A.n_depth} -> {info_B.n_depth}')
       ok += 1

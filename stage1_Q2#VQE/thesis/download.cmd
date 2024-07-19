@@ -34,6 +34,9 @@ REM https://zxcalculus.com/
 REM https://en.wikipedia.org/wiki/ZX-calculus
 REM https://pennylane.ai/qml/demos/tutorial_zx_calculus/
 
+REM Graph-theoretic Simplification of Quantum Circuits with the ZX-calculus
+wget -nc https://arxiv.org/pdf/1902.03178.pdf
+
 REM ZX-calculus for the working quantum computer scientist
 wget -nc https://arxiv.org/pdf/2012.13966.pdf
 

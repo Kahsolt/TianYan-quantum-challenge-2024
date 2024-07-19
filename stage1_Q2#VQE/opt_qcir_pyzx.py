@@ -10,16 +10,66 @@
 # 4. 重复上述步骤直到线路深度不再减小
 
 import pyzx as zx
+from pyzx.circuit import Circuit
+from fractions import Fraction
+import pyzx.circuit.gates as G
 from pyzx.graph.graph_s import GraphS
 from pennylane.transforms.zx import to_zx, from_zx
 try: import matplotlib.pyplot as plt
 except ImportError: pass
 
+from parse_qcir import _cvt_H_CZ_H_to_CNOT
 from opt_qcir_pennylane import *
+
+VIA_PENNYLANE = False
+
+
+def qcis_to_zx(qcis:str, nq:int) -> Circuit:
+  c = Circuit(nq)
+  for inst in qcis_to_ir(qcis):
+    if inst.gate in ['CNOT', 'CZ']:
+      c.add_gate(getattr(G, inst.gate)(inst.control_qubit, inst.target_qubit))
+    elif inst.gate in ['RX', 'RY', 'RZ']:
+      if   isclose(inst.param,  pi/2): p = Fraction( 1, 2)
+      elif isclose(inst.param, -pi/2): p = Fraction(-1, 2)
+      else: raise ValueError()
+      c.add_gate(getattr(G, inst.gate[-1] + 'Phase')(inst.target_qubit, p))
+    elif inst.gate == 'H':
+      c.add_gate(G.HAD(inst.target_qubit))
+    elif inst.gate in ['X', 'Y', 'Z', 'S', 'T']:
+      c.add_gate(getattr(G, inst.gate)(inst.target_qubit))
+    else:
+      if   inst.gate == 'X2P': c.add_gate(G.XPhase(inst.target_qubit, Fraction( 1, 2)))
+      elif inst.gate == 'X2M': c.add_gate(G.XPhase(inst.target_qubit, Fraction(-1, 2)))
+      elif inst.gate == 'Y2P': c.add_gate(G.YPhase(inst.target_qubit, Fraction( 1, 2)))
+      elif inst.gate == 'Y2M': c.add_gate(G.YPhase(inst.target_qubit, Fraction(-1, 2)))
+      else: raise ValueError(inst)
+  return c
+
+
+def zx_to_qcis(c:Circuit) -> str:
+  ir: IR = []
+  for g in c:
+    if   g.name in ['CNOT', 'CZ']:                 ir.append(Inst(g.name, g.target, control_qubit=g.control))
+    elif g.name in ['XPhase', 'YPhase', 'ZPhase']: ir.append(Inst('R' + g.name[0], g.target, param=float(g.phase)*pi))
+    elif g.name == 'HAD':                          ir.append(Inst('H', g.target))
+    elif g.name in ['X', 'Y', 'Z', 'S', 'T']:      ir.append(Inst(g.name, g.target))
+    elif g.name == 'SWAP':
+      ir.extend([
+        Inst('CNOT', g.target, control_qubit=g.control),
+        Inst('CNOT', g.control, control_qubit=g.target),
+        Inst('CNOT', g.target, control_qubit=g.control),
+      ])
+    else:
+      raise ValueError(g)
+  return ir_to_qcis(ir)
 
 
 # https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
-def qcis_simplify(qcis:str, method:str='full', log:bool=False) -> str:
+def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False) -> str:
+  if 'H-CZ-H to CNOT':
+    qcis = '\n'.join(_cvt_H_CZ_H_to_CNOT(qcis.split('\n')))
+
   if method == 'opt':
     # RX(θ) = H*RZ(θ)*H, `zx.full_optimize` only support {ZPhase, HAD, CNOT and CZ}
     ir = qcis_to_ir(qcis)
@@ -47,10 +97,15 @@ def qcis_simplify(qcis:str, method:str='full', log:bool=False) -> str:
         ir_new.append(inst)
     qcis = ir_to_qcis(ir_new)
 
-  qtape = qcis_to_qtape(qcis)
-  if log: print('>> qtape length before:', len(qtape))
-  g: GraphS = to_zx(qtape)
-  c = zx.Circuit.from_graph(g)
+  if VIA_PENNYLANE:
+    qtape = qcis_to_qtape(qcis)
+    if log: print('>> qtape length before:', len(qtape))
+    g: GraphS = to_zx(qtape)
+    c = zx.Circuit.from_graph(g)
+  else:
+    c = qcis_to_zx(qcis, nq)
+    g: GraphS = c.to_graph()
+
   if method == 'full':        # zx-based
     zx.full_reduce(g, quiet=not log)
     c_opt = zx.extract_circuit(g.copy())
@@ -60,16 +115,23 @@ def qcis_simplify(qcis:str, method:str='full', log:bool=False) -> str:
   elif method == 'opt':       # circuit-based
     c_opt = zx.full_optimize(c, quiet=not log)
   assert c.verify_equality(c_opt), breakpoint()
-  g_opt = c_opt.to_graph()
-  qtape_opt = from_zx(g_opt)
-  if log:
-    r = (len(qtape) - len(qtape_opt)) / len(qtape)
-    print('>> qtape length after:', len(qtape_opt), f'({r:.3%}↓)')
-  qcis_opt = qtape_to_qcis(qtape_opt)
+
+  if VIA_PENNYLANE:
+    g_opt = c_opt.to_graph()
+    qtape_opt = from_zx(g_opt)
+    if log:
+      r = (len(qtape) - len(qtape_opt)) / len(qtape)
+      print('>> qtape length after:', len(qtape_opt), f'({r:.3%}↓)')
+    qtape_mapped, func_postprocess = qml.map_wires(qtape_opt, dict(zip(qtape_opt.wires, qtape.wires)))
+    qtape_opt_mapped = func_postprocess(qtape_mapped)
+    qcis_opt = qtape_to_qcis(qtape_opt_mapped)
+  else:
+    qcis_opt = zx_to_qcis(c_opt)
+
   return qcis_opt
 
 
-def qcis_simplify_vqc(qcis:str, method:str='full') -> str:
+def qcis_simplify_vqc(qcis:str, nq:int, method:str='full') -> str:
   inst_list = qcis.split('\n')
   inst_list_new = []
   qc_seg = []
@@ -78,7 +140,7 @@ def qcis_simplify_vqc(qcis:str, method:str='full') -> str:
     found_short = False
     if len(qc_seg) >= 2:
       qcis_seg = '\n'.join(qc_seg)
-      qcis_seg_new = qcis_simplify(qcis_seg, method)
+      qcis_seg_new = qcis_simplify(qcis_seg, nq, method)
       if qcis_info(qcis_seg_new).n_depth <= qcis_info(qcis_seg).n_depth:
         found_short = True
         qc_seg_new = qcis_seg_new.split('\n')
@@ -106,7 +168,7 @@ if __name__ == '__main__':
   parser.add_argument('-I', type=int, default=0, help='example circuit index number')
   parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
   parser.add_argument('-M', '--method', default='full', choices=['full', 'teleport', 'opt'], help='reduce method')
-  parser.add_argument('--repeat', default=7, type=int, help='optimizing n_repeats')
+  parser.add_argument('--repeat', default=1, type=int, help='optimizing n_repeats')
   parser.add_argument('--render', action='store_true', help='do render before optimizing')
   parser.add_argument('--save', action='store_true', help='save optimized circuit')
   parser.add_argument('--show', action='store_true', help='draw optimized circuit')
@@ -131,7 +193,7 @@ if __name__ == '__main__':
   qcis_opt = qcis
   last_depth = info.n_depth
   for _ in range(args.repeat):
-    qcis_opt = simplify_func(qcis_opt, args.method)
+    qcis_opt = simplify_func(qcis_opt, info.n_qubits, args.method)
     info_opt = qcis_info(qcis_opt)
     new_depth = info_opt.n_depth
     if new_depth == last_depth: break

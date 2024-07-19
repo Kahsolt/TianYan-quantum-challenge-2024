@@ -208,6 +208,17 @@ def qcis_info(qcis:str) -> CircuitInfo:
     param_names=sorted(param_names),
   )
 
+def qcis_depth(qcis:str) -> int:
+  edges: List[Tuple[int, int]] = []
+  for inst in qcis.split('\n'):
+    gate_type, qidx, *args = inst.split(' ')
+    if gate_type in PSEUDO_GATES: continue
+    q0 = parse_inst_qid(qidx)
+    if gate_type in ['CZ', 'CNOT']:
+      q1 = parse_inst_qid(args[0])
+      edges.append((q0, q1))
+  return get_circuit_depth_from_edge_list(edges)
+
 
 ''' Format Convert '''
 

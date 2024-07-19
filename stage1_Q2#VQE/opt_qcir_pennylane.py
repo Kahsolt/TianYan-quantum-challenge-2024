@@ -130,7 +130,6 @@ if __name__ == '__main__':
   parser = ArgumentParser()
   parser.add_argument('-I', type=int, default=0, help='example circuit index number')
   parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
-  parser.add_argument('--repeat', default=1, type=int, help='optimizing n_repeats')
   parser.add_argument('--render', action='store_true', help='do render before optimizing')
   parser.add_argument('--save', action='store_true', help='save optimized circuit')
   parser.add_argument('--show', action='store_true', help='draw optimized circuit')

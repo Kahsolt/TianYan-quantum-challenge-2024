@@ -15,8 +15,6 @@ from fractions import Fraction
 import pyzx.circuit.gates as G
 from pyzx.graph.graph_s import GraphS
 from pennylane.transforms.zx import to_zx, from_zx
-try: import matplotlib.pyplot as plt
-except ImportError: pass
 
 from parse_qcir import _cvt_H_CZ_H_to_CNOT
 from opt_qcir_pennylane import *
@@ -66,8 +64,8 @@ def zx_to_qcis(c:Circuit) -> str:
 
 
 # https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
-def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False) -> str:
-  if 'H-CZ-H to CNOT':
+def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> str:
+  if H_CZ_H_to_CNOT:
     qcis = '\n'.join(_cvt_H_CZ_H_to_CNOT(qcis.split('\n')))
 
   if method == 'opt':
@@ -131,7 +129,7 @@ def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False) -> str:
   return qcis_opt
 
 
-def qcis_simplify_vqc(qcis:str, nq:int, method:str='full') -> str:
+def qcis_simplify_vqc(qcis:str, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=False) -> str:
   inst_list = qcis.split('\n')
   inst_list_new = []
   qc_seg = []
@@ -140,7 +138,7 @@ def qcis_simplify_vqc(qcis:str, nq:int, method:str='full') -> str:
     found_short = False
     if len(qc_seg) >= 2:
       qcis_seg = '\n'.join(qc_seg)
-      qcis_seg_new = qcis_simplify(qcis_seg, nq, method)
+      qcis_seg_new = qcis_simplify(qcis_seg, nq, method, H_CZ_H_to_CNOT=H_CZ_H_to_CNOT)
       if qcis_info(qcis_seg_new).n_depth <= qcis_info(qcis_seg).n_depth:
         found_short = True
         qc_seg_new = qcis_seg_new.split('\n')
@@ -168,7 +166,6 @@ if __name__ == '__main__':
   parser.add_argument('-I', type=int, default=0, help='example circuit index number')
   parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
   parser.add_argument('-M', '--method', default='full', choices=['full', 'teleport', 'opt'], help='reduce method')
-  parser.add_argument('--repeat', default=1, type=int, help='optimizing n_repeats')
   parser.add_argument('--render', action='store_true', help='do render before optimizing')
   parser.add_argument('--save', action='store_true', help='save optimized circuit')
   parser.add_argument('--show', action='store_true', help='draw optimized circuit')
@@ -190,14 +187,8 @@ if __name__ == '__main__':
   else:
     simplify_func = qcis_simplify_vqc
 
-  qcis_opt = qcis
-  last_depth = info.n_depth
-  for _ in range(args.repeat):
-    qcis_opt = simplify_func(qcis_opt, info.n_qubits, args.method)
-    info_opt = qcis_info(qcis_opt)
-    new_depth = info_opt.n_depth
-    if new_depth == last_depth: break
-    last_depth = new_depth
+  qcis_opt = simplify_func(qcis, info.n_qubits, args.method)
+  info_opt = qcis_info(qcis_opt)
   r = (info.n_depth - info_opt.n_depth) / info.n_depth
   print(f'>> n_depth: {info.n_depth} -> {info_opt.n_depth} ({r:.3%}↓)')
 

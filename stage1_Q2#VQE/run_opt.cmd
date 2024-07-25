@@ -3,7 +3,7 @@
 
 REM GOTO pennylane
 REM GOTO pyzx
-REM GOTO fuse
+GOTO fuse
 
 
 :cqlib

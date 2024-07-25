@@ -7,6 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 from re import compile as Regex
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import *
 
 import numpy as np
@@ -174,6 +175,7 @@ def get_circuit_depth_from_edge_list(edges:List[Tuple[int, int]]) -> int:
     D[u] = D[v] = new_depth
   return max(D)
 
+@lru_cache
 def qcis_info(qcis:str) -> CircuitInfo:
   n_gates = 0
   gate_types = set()

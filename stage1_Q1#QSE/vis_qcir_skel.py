@@ -47,14 +47,17 @@ def qcis_to_pennylane(qcis:str) -> Callable[[PR], StateMP]:
 
 if __name__ == '__main__':
   parser = ArgumentParser()
-  parser.add_argument('-N', type=int, default=9, help='example circuit qubit count')
+  parser.add_argument('-R', type=int, default=12, help='random circuit depth')
+  parser.add_argument('-N', type=int, help='example GHZ-circuit qubit count')
   parser.add_argument('-F', '--fp', help='path to circuit file qcis.txt')
   args = parser.parse_args()
 
   if args.fp:
     qcis_list = load_sample_set(args.fp)
-  else:
+  elif args.N is not None:
     qcis_list = load_sample_set_nq(args.N)
+  elif args.R is not None:
+    qcis_list = [load_rand_CZ_qcis(args.R)]
 
   for qcis in qcis_list:
     ir = qcis_to_ir(qcis)

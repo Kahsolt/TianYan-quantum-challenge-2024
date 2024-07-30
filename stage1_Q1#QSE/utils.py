@@ -4,18 +4,22 @@
 
 import json
 import random
-from copy import deepcopy
 from pathlib import Path
+from time import time
 from re import compile as Regex
 from dataclasses import dataclass
 from typing import *
 
 import numpy as np
-from numpy import ndarray
 from numpy import pi
+from rustworkx import PyGraph
+
+from hardware_info import *
 
 BASE_PATH = Path(__file__).parent
 DATA_PATH = BASE_PATH / 'data'
+
+isclose = lambda x, y: abs(x - y) < 1e-5
 
 
 ''' Const '''
@@ -57,20 +61,6 @@ PSEUDO_GATES = {
   BARRIER_GATE,
   MEASURE_GATE,
 }
-PRIMITIVE_GATES = [
-  'X2P', 'X2M', 'Y2P', 'Y2M', 'CZ', 'RZ',
-  'XY2P', 'XY2M', 'I', 'B',
-]
-DAGGER_GATE_MAP = {
-  'X2P': 'X2M',
-  'X2M': 'X2P',
-  'Y2P': 'Y2M',
-  'Y2M': 'Y2P',
-  'S': 'SD',
-  'SD': 'S',
-  'T': 'TD',
-  'TD': 'T',
-}
 
 
 ''' Data '''
@@ -80,8 +70,15 @@ def load_sample_set(fp:Path) -> List[str]:
     qcis_list = json.load(fh)['exp_codes']
   return ['\n'.join([inst.strip() for inst in qcis.split('\n')]) for qcis in qcis_list]
 
-def load_sample_set_nq(nq:int=0) -> List[str]:
+def load_sample_set_nq(nq:int=9) -> List[str]:
   return load_sample_set(DATA_PATH / f'{nq}qubit_ghz.json')
+
+def load_rand_CZ_qcis(d:int=8, nq:int=10) -> str:
+  ir: IR = []
+  for i in range(d):
+    x, y = random.sample(range(nq), 2)
+    ir.append(Inst('CZ', x, control_qubit=y))
+  return ir_to_qcis(ir)
 
 
 ''' Parse QCIS '''
@@ -130,11 +127,9 @@ def parse_inst_param_name(arg:str) -> str:
 class CircuitInfo:
   n_qubits: int
   n_gates: int
-  n_gate_types: int
   n_depth: int
   qubit_ids: List[int]
-  gate_types: List[str]
-  param_names: List[str]
+  graph: PyGraph
 
 
 def get_circuit_depth_from_edge_list(edges:List[Tuple[int, int]]) -> int:
@@ -153,37 +148,35 @@ def get_circuit_depth_from_edge_list(edges:List[Tuple[int, int]]) -> int:
 
 def qcis_info(qcis:str) -> CircuitInfo:
   n_gates = 0
-  gate_types = set()
-  qubit_ids = set()
-  param_names = set()
+  vertexes: Set[int] = set()
   edges: List[Tuple[int, int]] = []
   for inst in qcis.split('\n'):
     gate_type, qidx, *args = inst.split(' ')
     if gate_type in PSEUDO_GATES: continue
     n_gates += 1
-    gate_types.add(gate_type)
     q0 = parse_inst_qid(qidx)
-    qubit_ids.add(q0)
-    if GATES[gate_type].n_params == 1:
-      pname = parse_inst_param_name(args[0])
-      try: _ = float(pname)
-      except: param_names.add(pname)
+    vertexes.add(q0)
     if gate_type in ['CZ', 'CNOT']:
       q1 = parse_inst_qid(args[0])
-      qubit_ids.add(q1)
+      vertexes.add(q1)
       edges.append((q0, q1))
 
-  # assure circuit is compact, no need to squeeze un-used qubits
-  #assert max(qubit_ids) + 1 == len(qubit_ids), breakpoint()
+  # 先填满再挖坑
+  g = PyGraph(multigraph=False)
+  for k in range(N_QUBITS):
+    g.add_node(k)
+  for k in range(N_QUBITS):
+    if k not in vertexes:
+      g.remove_node(k)
+  for u, v in edges:
+    g.add_edge(u, v, 1.0)
 
   return CircuitInfo(
-    n_qubits=len(qubit_ids), 
+    n_qubits=len(vertexes), 
     n_depth=get_circuit_depth_from_edge_list(edges),
     n_gates=n_gates, 
-    n_gate_types=len(gate_types),
-    qubit_ids=sorted(qubit_ids), 
-    gate_types=sorted(gate_types),
-    param_names=sorted(param_names),
+    qubit_ids=sorted(vertexes), 
+    graph=g,
   )
 
 
@@ -218,33 +211,11 @@ class Inst:
       return f'{self.gate} Q{self.target_qubit}'
     raise NotImplementedError(self)
 
-  def to_isq(self):
-    if self.is_Q2:
-      return f'{self.gate}(q[{self.control_qubit}], q[{self.target_qubit}]);'
-    if self.is_Q1P:
-      return f'{self.gate}({self.param}, q[{self.target_qubit}]);'
-    if self.is_Q1:
-      return f'{self.gate}(q[{self.target_qubit}]);'
-    raise NotImplementedError(self)
-
 IR = List[Inst]
 PR = Dict[str, float]
 
-
 def ir_to_qcis(ir:IR) -> str:
   return '\n'.join([inst.to_qcis() for inst in ir])
-
-def ir_to_isq(ir:IR) -> str:
-  max_idx = -1
-  for inst in ir:
-    max_idx = max(max(max_idx, inst.target_qubit), inst.control_qubit or 0)
-  nq = max_idx + 1
-  inst_list = [f'qbit q[{nq}];']
-  for inst in ir:
-    inst_list.append(inst.to_isq())
-  for q in range(nq):
-    inst_list.append(f'M(q[{q}]);')
-  return '\n'.join(inst_list)
 
 def qcis_to_ir(qcis:str) -> IR:
   ir = []
@@ -262,29 +233,14 @@ def qcis_to_ir(qcis:str) -> IR:
       raise ValueError(f'>> unknown inst format: {inst}')
   return ir
 
-def qcis_to_isq(qcis:str) -> str:
-  info = qcis_info(qcis)
 
-  inst_list = qcis.split('\n')
-  inst_list_new = [f'qbit q[{info.n_qubits}];']
-  for inst in inst_list:
-    gate_type, qidx, *args = inst.split(' ')
-    if gate_type == BARRIER_GATE: continue
-    gate = GATES[gate_type]
+''' Misc '''
 
-    q0 = parse_inst_qid(qidx)
-    if gate_type == MEASURE_GATE:
-      continue
-    elif gate.n_qubits == 2:
-      q1 = parse_inst_qid(args[0])
-      inst_list_new.append(f'{gate.name}(q[{q0}], q[{q1}]);')
-    elif gate.n_params == 0:
-      inst_list_new.append(f'{gate.name}(q[{q0}]);')
-    elif gate.n_params == 1:
-      inst_list_new.append(f'{gate.name}({args[0]}, q[{q0}]);')
-    else:
-      raise ValueError
-
-  for q in range(info.n_qubits):
-    inst_list_new.append(f'M(q[{q}]);')
-  return '\n'.join(inst_list_new)
+def timer(fn):
+  def wrapper(*args, **kwargs):
+    start = time()
+    r = fn(*args, **kwargs)
+    end = time()
+    print(f'[Timer]: {fn.__name__} took {end - start:.3f}s')
+    return r
+  return wrapper

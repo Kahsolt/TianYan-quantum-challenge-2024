@@ -3,7 +3,7 @@
 - 给定芯片拓扑结构、线路需求
   - 数据比特数量 N、辅助比特数量 N'、两比特门数量 n、两比特位置布局、线路深度 m、线路运行保真度 f
 - 找到合适的比特映射集合
-- 最终测试: 10 比特并行 XEB 实验 (改了，改成逻辑单链的 GHZ 态线路了)
+- 最终测试: 10 比特并行 XEB 实验 + GHZ 态线路
   - 主要评价指标 
     - 映射算法能否执行 A = 1 (成功) / 0 (失败)
   - 次要评价指标
@@ -12,7 +12,7 @@
   - 评分公式: A * (F超过所有成绩的正态分布的sigma值 * 0.6 + T超过所有成绩的正态分布的sigma值 * 0.4)
     - 🤔: 你确定最后分数分布是个正态而不是长尾，况且样本数足够？
 
-ℹ 可参考 IBM Qiskit 中的解决方案: VF2Layout, TrivialLayout, SabreLayout, DenseLayout
+ℹ 可参考 IBM Qiskit 中的解决方案: TrivialLayout, VF2Layout, SabreLayout, DenseLayout
 
 
 ### Task
@@ -28,3 +28,10 @@ Mapping 问题本质是图论问题，可以参考 [hardware/find_chain.py](../h
 
 - [ ] 写脚本模拟 XEB 实验
 - [ ] 写脚本直接调用/搬迁 IBM Qiskit 中的解决方案
+
+
+```
+最终评测使用随机线路和给定GHZ线路
+- GHZ线路在少比特情况下可能符合 VF2Layout
+- 随机线路基本不可能符合 VF2Layout，只能尝试 SabreLayout
+```

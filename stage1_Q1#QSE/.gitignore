@@ -1,3 +1,6 @@
 # thesis
 thesis/*
 !thesis/*.cmd
+
+# out
+out/

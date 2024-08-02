@@ -65,6 +65,7 @@
 
 - ZX-Calculus: https://zxcalculus.com/
 - PyZX: https://pyzx.readthedocs.io/en/latest/gettingstarted.html
+- MindQuantum 含参量子线路的等价性检查: https://hiq.huaweicloud.com/tutorial/equivalence_checking_of_PQC
 
 ----
 by Armit

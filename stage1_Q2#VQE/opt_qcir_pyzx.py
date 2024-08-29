@@ -2,21 +2,22 @@
 # Author: Armit
 # Create Time: 2024/07/18
 
-# 借助 pyzx 库进行线路化简 (兄弟这个非常猛！！)
-# 借助 pyzx 库进行含参线路化简
+# 借助 pyzx 库进行含参线路化简 (兄弟这个非常猛！！)
 # 1. 分割线路为 含参段vqc 和 无参段qc
 # 2. 对 qc 段进行 ZX 化简
 # 3. 重新粘接 vqc 和 qc 段
 # 4. 重复上述步骤直到线路深度不再减小
 
-import pyzx as zx
-from pyzx.circuit import Circuit
 from fractions import Fraction
+from argparse import ArgumentParser
+
+import pyzx as zx
 import pyzx.circuit.gates as G
+from pyzx.circuit import Circuit
 from pyzx.graph.graph_s import GraphS
 
 from parse_qcir import _cvt_H_CZ_H_to_CNOT
-from opt_qcir_pennylane import *
+from utils import *
 
 
 def qcis_to_zx(qcis:str, nq:int) -> Circuit:
@@ -179,6 +180,9 @@ if __name__ == '__main__':
     save_qcis(qcis_opt, out_fp)
 
   if args.show:
+    from opt_qcir_pennylane import qcis_to_pennylane
+    import pennylane as qml
+
     qnode = qcis_to_pennylane(qcis_opt)
     qcir_c_s = qml.draw(qnode, max_length=120)()
     print('[Circuit-compiled]')

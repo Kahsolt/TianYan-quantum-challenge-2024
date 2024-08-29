@@ -26,7 +26,7 @@ def qcis_to_zx(qcis:str, nq:int) -> Circuit:
     elif inst.gate == 'H':
       c.add_gate(G.HAD(inst.target_qubit))
     elif inst.gate in ['X', 'Y', 'Z']:
-      c.add_gate(getattr(G, inst.gate + 'Phase')(inst.target_qubit, pi/2))
+      c.add_gate(getattr(G, inst.gate + 'Phase')(inst.target_qubit, pi/2))  # BUG: pi/2 or 1 ?
     elif inst.gate in ['S', 'T']:
       c.add_gate(getattr(G, inst.gate)(inst.target_qubit))
     else:

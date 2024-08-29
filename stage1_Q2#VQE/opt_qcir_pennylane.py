@@ -84,12 +84,12 @@ def qcis_simplify(qcis:str, log:bool=False) -> str:
   qtapes, func_postprocess = qml.compile(
     qtape,
     pipeline=[    # default setting
-      T.commute_controlled,
+      #T.commute_controlled,
       T.cancel_inverses,
-      T.merge_rotations,
+      #T.merge_rotations,
     ],
     basis_set=["CNOT", "CZ", "Hadamard", "RX", "RY", "RZ"],
-    num_passes=10,
+    num_passes=3,
   )
   qtape_compiled = func_postprocess(qtapes)
   if log:

@@ -6,7 +6,7 @@
 
 原理: commute_controlled + cancel_inverses + merge_rotations + ZX-Calculus reduction  
 创新: 方法融合 + 类遗传算法的搜索-淘汰选择机制  
-第三方库依赖: pennylane + pyzx
+第三方库依赖: pyzx + pennylane (TODO: 移除运行时对 pennylane 的依赖) 
 
 
 ### Quick start

@@ -126,41 +126,6 @@ def qcis_simplify_vqc(qcis:str) -> str:
   return '\n'.join(inst_list_new)
 
 
-def qcis_simplify_vqc_nonseg(qcis:str) -> str:
-  ''' 不用区分 qc/vqc 的办法 '''
-  qtape = qcis_to_qtape(qcis)
-
-  RZ_memo: List[Any] = []   # keep order (just pray for it!!)
-  if 'handle RZ':
-    for op in qtape:
-      if isinstance(op, StateMP): continue
-      if op.name == 'RZ':
-        RZ_memo.append(op.data)
-        op.data = (2.5,)
-
-  qtapes, func_postprocess = qml.compile(
-    qtape,
-    pipeline=[    # default setting
-      T.commute_controlled,
-      T.cancel_inverses,
-      T.merge_rotations,
-    ],
-    basis_set=["CNOT", "CZ", "Hadamard", "RX", "RY", "RZ"],
-    num_passes=10,
-  )
-  qtape_compiled = func_postprocess(qtapes)
-
-  if 'unhandle RZ':
-    for op in qtape_compiled:
-      if isinstance(op, StateMP): continue
-      if op.name == 'RZ':
-        op.data = RZ_memo.pop(0)
-    assert not len(RZ_memo)
-
-  qcis = qtape_to_qcis(qtape_compiled)
-  return qcis
-
-
 if __name__ == '__main__':
   parser = ArgumentParser()
   parser.add_argument('-I', type=int, default=0, help='example circuit index number')

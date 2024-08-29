@@ -14,12 +14,9 @@ from pyzx.circuit import Circuit
 from fractions import Fraction
 import pyzx.circuit.gates as G
 from pyzx.graph.graph_s import GraphS
-from pennylane.transforms.zx import to_zx, from_zx
 
 from parse_qcir import _cvt_H_CZ_H_to_CNOT
 from opt_qcir_pennylane import *
-
-VIA_PENNYLANE = False
 
 
 def qcis_to_zx(qcis:str, nq:int) -> Circuit:
@@ -95,14 +92,8 @@ def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to
         ir_new.append(inst)
     qcis = ir_to_qcis(ir_new)
 
-  if VIA_PENNYLANE:
-    qtape = qcis_to_qtape(qcis)
-    if log: print('>> qtape length before:', len(qtape))
-    g: GraphS = to_zx(qtape)
-    c = zx.Circuit.from_graph(g)
-  else:
-    c = qcis_to_zx(qcis, nq)
-    g: GraphS = c.to_graph()
+  c = qcis_to_zx(qcis, nq)
+  g: GraphS = c.to_graph()
 
   if method == 'full':        # zx-based
     zx.full_reduce(g, quiet=not log)
@@ -114,18 +105,7 @@ def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to
     c_opt = zx.full_optimize(c, quiet=not log)
   assert c.verify_equality(c_opt), breakpoint()
 
-  if VIA_PENNYLANE:
-    g_opt = c_opt.to_graph()
-    qtape_opt = from_zx(g_opt)
-    if log:
-      r = (len(qtape) - len(qtape_opt)) / len(qtape)
-      print('>> qtape length after:', len(qtape_opt), f'({r:.3%}↓)')
-    qtape_mapped, func_postprocess = qml.map_wires(qtape_opt, dict(zip(qtape_opt.wires, qtape.wires)))
-    qtape_opt_mapped = func_postprocess(qtape_mapped)
-    qcis_opt = qtape_to_qcis(qtape_opt_mapped)
-  else:
-    qcis_opt = zx_to_qcis(c_opt)
-
+  qcis_opt = zx_to_qcis(c_opt)
   return qcis_opt
 
 

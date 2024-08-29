@@ -41,7 +41,7 @@
 ℹ The best method is `fuse`, reducing `13.299%` gate count in average :)  
 
 | Sample Case | original / cqlib | pennlylane | pyxz | fuse |
-| :-: | :-: | :-: | :-: | :-: | :-: |
+| :-: | :-: | :-: | :-: | :-: |
 | example_0 |   64 |   56 (12.500%↓) |   56 (12.500%↓) |   56 (12.500%↓) |
 | example_1 |  144 |  128 (11.111%↓) |  126 (12.500%↓) |  125 (13.194%↓) |
 | example_2 |  140 |  124 (11.429%↓) |  122 (12.857%↓) |  122 (12.857%↓) |

@@ -3,7 +3,7 @@
 # Create Time: 2024/07/18
 
 # 借助 pennylane 库进行线路化简 (能对消最基本的相邻互逆)
-# 借助 pennylane 库进行含参线路化简
+# 对于含参线路化简
 # 1. 分割线路为 含参段vqc 和 无参段qc
 # 2. 对 qc 段进行 默认组合 化简
 # 3. 重新粘接 vqc 和 qc 段
@@ -86,10 +86,10 @@ def qcis_simplify(qcis:str, log:bool=False) -> str:
     pipeline=[    # default setting
       #T.commute_controlled,
       T.cancel_inverses,
-      #T.merge_rotations,
+      T.merge_rotations,    # MAGIC: 神秘的作用，真的能降低线路深度, but why...
     ],
     basis_set=["CNOT", "CZ", "Hadamard", "RX", "RY", "RZ"],
-    num_passes=3,
+    num_passes=3,           # MAGIC: 循环 3 次以上就无变化了
   )
   qtape_compiled = func_postprocess(qtapes)
   if log:

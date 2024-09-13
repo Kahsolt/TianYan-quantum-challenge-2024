@@ -2,7 +2,7 @@
 # Author: Armit
 # Create Time: 2024/07/18 
 
-# 校验化简线路的矩阵等价性
+# 校验化简线路的矩阵等价性 (依赖 pennylane/isqopen 库)
 
 from argparse import ArgumentParser
 
@@ -55,8 +55,7 @@ if __name__ == '__main__':
   parser.add_argument('-D', '--dp', default=OUT_PATH, help='path to folder containing optimzied circuit file qcis.txt')
   args = parser.parse_args()
 
-  # NOTE: 默认只检查前7个，矩阵维度 >=2^16 之后很慢很慢 :(
-  idxs = [args.index] if args.index is not None else range(7)
+  idxs = [args.index] if args.index is not None else range(10)
 
   tot, ok = 0, 0
   for i in idxs:

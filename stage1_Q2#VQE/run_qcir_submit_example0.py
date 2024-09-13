@@ -6,8 +6,12 @@
 
 from scipy.io import loadmat
 
-from opt_qcir_pennylane import *
-from vis_qcir_skel import *
+try:
+  from opt_qcir_pennylane import *
+  HAS_PENNYLANE = True
+except ImportError:
+  print('>> WARN: package "pennylane" not found, visualization will be disabled :(')
+  HAS_PENNYLANE = False
 from utils import *
 
 # circuit topos: 0-1-2-3
@@ -24,15 +28,18 @@ info = qcis_info(qcis)
 pr = {k: 1 for k in info.param_names} 
 qcis = render_qcis(qcis, pr)
 
-qnode = qcis_to_pennylane(qcis)
-qcir = qml.draw(qnode, max_length=120)()
-print(qcir)
-print()
+if HAS_PENNYLANE:
+  qnode = qcis_to_pennylane(qcis)
+  qcir = qml.draw(qnode, max_length=120)()
+  print(qcir)
+  print()
 
-qtape = qcis_to_qtape(qcis)
-qtapes, func = qml.map_wires(qtape, QUBIT_MAPPING)
-qtape_remapped = func(qtapes)
-qcis_remapped = qtape_to_qcis(qtape_remapped)
+  qtape = qcis_to_qtape(qcis)
+  qtapes, func = qml.map_wires(qtape, QUBIT_MAPPING)
+  qtape_remapped = func(qtapes)
+  qcis_remapped = qtape_to_qcis(qtape_remapped)
+else:
+  qcis_remapped = qcis
 
 ir = qcis_to_ir(qcis_remapped)
 ir_new = []

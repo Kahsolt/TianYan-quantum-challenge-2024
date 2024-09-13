@@ -5,17 +5,17 @@
 # 融就完事儿了！
 
 import random
+from argparse import ArgumentParser
 
-from opt_qcir_pennylane import *
-from opt_qcir_pennylane import qcis_simplify_vqc as qcis_simplify_vqc_pennylane
-from opt_qcir_pyzx import *
+from opt_qcir_reduce import qcis_simplify_vqc as qcis_simplify_vqc_reduce, qcis_simplify as qcis_simplify_reduce
 from opt_qcir_pyzx import qcis_simplify_vqc as qcis_simplify_vqc_pyzx
+from utils import *
 
 
 def run(args, qcis:str) -> str:
   # simplifiers
   simplifiers = [
-    lambda qcis, nq: qcis_simplify_vqc_pennylane(qcis),
+    lambda qcis, nq: qcis_simplify_vqc_reduce(qcis),
     lambda qcis, nq: qcis_simplify_vqc_pyzx(qcis, nq),
     lambda qcis, nq: qcis_simplify_vqc_pyzx(qcis, nq, H_CZ_H_to_CNOT=True),
   ]
@@ -30,11 +30,17 @@ def run(args, qcis:str) -> str:
   for _ in range(args.repeat):
     # evolve
     popl_new = []
+    qcis_set = set()
     for _, qcis in popl:
       for simplify_func in simplifiers:
+        n_rep = 1 if simplify_func is qcis_simplify_vqc_pyzx else 3
+        qcis_new = qcis
         try:
-          qcis_new = simplify_func(qcis, info.n_qubits)
-          popl_new.append((qcis_depth(qcis_new), qcis_new))
+          for _ in range(n_rep):
+            qcis_new = simplify_func(qcis_new, info.n_qubits)
+          if qcis_new not in qcis_set:
+            qcis_set.add(qcis_new)
+            popl_new.append((qcis_depth(qcis_new), qcis_new))
         except: pass
 
     # merge, shuffule, rank, kill, swap
@@ -45,12 +51,13 @@ def run(args, qcis:str) -> str:
 
     # break early?
     depth_rank = [d for d, _ in popl]
-    if depth_rank_last == depth_rank:
-      break
+    print('depth_rank:', depth_rank)
+    if depth_rank[0] == depth_rank[-1]: break   # all the same
+    if depth_rank_last == depth_rank:   break   # no improve
     depth_rank_last = depth_rank
 
   best_qcis = popl[0][1]
-  return qcis_simplify_vqc_pennylane(best_qcis)    # assure no adjacent inverses :)
+  return qcis_simplify_vqc_reduce(best_qcis)    # assure no adjacent inverses :)
 
 
 if __name__ == '__main__':

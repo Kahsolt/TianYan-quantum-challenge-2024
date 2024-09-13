@@ -1,26 +1,19 @@
 @REM run circuit optimize algorithms
 @ECHO OFF
 
-REM GOTO pennylane
+REM GOTO reduce
 REM GOTO pyzx
 GOTO fuse
 
 
-:cqlib
-ECHO [Run cqlib]
+:reduce
+ECHO [Run reduce]
 FOR /L %%I IN (0,1,9) DO (
   ECHO sample-%%I
-  python opt_qcir_cqlib.py -I %%I
+  python opt_qcir_reduce.py -I %%I
 )
 ECHO.
 
-:pennylane
-ECHO [Run pennylane]
-FOR /L %%I IN (0,1,9) DO (
-  ECHO sample-%%I
-  python opt_qcir_pennylane.py -I %%I
-)
-ECHO.
 
 :pyzx
 ECHO [Run pyzx]

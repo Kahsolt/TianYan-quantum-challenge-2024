@@ -180,7 +180,7 @@ if __name__ == '__main__':
     save_qcis(qcis_opt, out_fp)
 
   if args.show:
-    from opt_qcir_pennylane import qcis_to_pennylane
+    from run_qcir_mat import qcis_to_pennylane
     import pennylane as qml
 
     qnode = qcis_to_pennylane(qcis_opt)

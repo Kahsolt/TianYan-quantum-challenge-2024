@@ -5,7 +5,7 @@
 from argparse import ArgumentParser
 
 from run_mapping_pennylane import run_pennylane
-from run_mapping_vf2 import run_vf2
+from run_mapping_vf2pp import run_vf2pp
 from utils import *
 
 
@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
   qcis_mapped_list = []
   for qcis in qcis_list:
-    qcis_mapped = run_vf2(qcis)
+    qcis_mapped = run_vf2pp(qcis)
     if qcis_mapped is None:
       qcis_mapped = run_pennylane(qcis)
     qcis_mapped_list.append(qcis_mapped)
@@ -36,3 +36,5 @@ if __name__ == '__main__':
     with open(args.fp_out, 'w', encoding='utf-8') as fh:
       data = {"exp_codes": qcis_mapped_list}
       json.dump(data, fh, indent=2, ensure_ascii=False)
+  else:
+    print(qcis_mapped_list[0])

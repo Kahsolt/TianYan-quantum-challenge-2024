@@ -66,7 +66,6 @@ def qtape_to_qcis(qtape:QuantumTape) -> str:
   return '\n'.join(inst_list)
 
 
-#@timer
 def run_pennylane(qcis:str) -> str:
   try:
     tape = qcis_to_qtape(qcis)

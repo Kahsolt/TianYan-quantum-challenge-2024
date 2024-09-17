@@ -4,9 +4,7 @@
 
 from pathlib import Path
 from dataclasses import dataclass
-from typing import *
-
-from rustworkx import PyGraph
+from typing import List, Tuple, Dict
 
 BASE_PATH = Path(__file__).parent
 SDATA_PATH = BASE_PATH / '赛题芯片标准状态'
@@ -108,33 +106,3 @@ def get_coupling_qubits() -> List[int]:
       vset.add(v)
     COUPLING_QUBITS = list(vset)
   return COUPLING_QUBITS
-
-
-''' Topology '''
-
-CHIP_GRAPH: PyGraph = None
-
-def get_chip_graph() -> PyGraph:
-  global CHIP_GRAPH
-  if CHIP_GRAPH is None:
-    g = PyGraph(multigraph=False)
-    # 保持分配的序号一致，先填满充再挖坑
-    qids = list(get_q1_info().keys())
-    for k in range(N_QUBITS):
-      g.add_node(k)
-    for k in range(N_QUBITS):
-      if k not in qids:
-        g.remove_node(k)
-    for k, v in get_q2_info().items():
-      g.add_edge(*k, v.cz_pauli_error_xeb)
-    CHIP_GRAPH = g
-
-  return CHIP_GRAPH
-
-
-if __name__ == '__main__':
-  q1_info = get_q1_info()
-  q2_info = get_q2_info()
-  g0 = iter_chip_graph()
-
-  breakpoint()

@@ -1,2 +1,1 @@
-rustworkx
 pennylane

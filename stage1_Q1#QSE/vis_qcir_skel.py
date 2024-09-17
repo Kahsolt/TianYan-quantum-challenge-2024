@@ -4,6 +4,8 @@
 
 # 查看线路的两比特门骨架
 
+from typing import Callable
+
 from argparse import ArgumentParser
 
 import pennylane as qml

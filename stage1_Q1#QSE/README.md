@@ -25,6 +25,8 @@ pip install -r requirements.txt
 - VF2
   - https://networkx.org/documentation/stable/reference/algorithms/isomorphism.html
   - https://www.rustworkx.org/api/algorithm_functions/isomorphism.html
+- VF2++ standalone impl.
+  - https://github.com/Kahsolt/Huawei-Algotester-2024-Subgrahh-Isomorphism-Checker
 
 ----
 by Armit

@@ -8,11 +8,10 @@ from pathlib import Path
 from time import time
 from re import compile as Regex
 from dataclasses import dataclass
-from typing import *
+from typing import List, Tuple, Dict, Set, Union, Optional
 
 import numpy as np
 from numpy import pi
-from rustworkx import PyGraph
 
 from hardware_info import *
 
@@ -129,10 +128,10 @@ class CircuitInfo:
   n_gates: int
   n_depth: int
   qubit_ids: List[int]
-  graph: PyGraph
+  edges: Set[Tuple[int, int]]
 
 
-def get_circuit_depth_from_edge_list(edges:List[Tuple[int, int]]) -> int:
+def get_circuit_depth_from_edge_list(edges:Set[Tuple[int, int]]) -> int:
   if not edges: return 0
 
   max_qid = -1
@@ -149,7 +148,7 @@ def get_circuit_depth_from_edge_list(edges:List[Tuple[int, int]]) -> int:
 def qcis_info(qcis:str) -> CircuitInfo:
   n_gates = 0
   vertexes: Set[int] = set()
-  edges: List[Tuple[int, int]] = []
+  edges: Set[Tuple[int, int]] = set()
   for inst in qcis.split('\n'):
     gate_type, qidx, *args = inst.split(' ')
     if gate_type in PSEUDO_GATES: continue
@@ -159,24 +158,14 @@ def qcis_info(qcis:str) -> CircuitInfo:
     if gate_type in ['CZ', 'CNOT']:
       q1 = parse_inst_qid(args[0])
       vertexes.add(q1)
-      edges.append((q0, q1))
-
-  # 先填满再挖坑
-  g = PyGraph(multigraph=False)
-  for k in range(N_QUBITS):
-    g.add_node(k)
-  for k in range(N_QUBITS):
-    if k not in vertexes:
-      g.remove_node(k)
-  for u, v in edges:
-    g.add_edge(u, v, 1.0)
+      edges.add((q0, q1))
 
   return CircuitInfo(
     n_qubits=len(vertexes), 
     n_depth=get_circuit_depth_from_edge_list(edges),
     n_gates=n_gates, 
-    qubit_ids=sorted(vertexes), 
-    graph=g,
+    qubit_ids=sorted(vertexes),
+    edges=edges,
   )
 
 

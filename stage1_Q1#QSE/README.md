@@ -27,6 +27,9 @@ pip install -r requirements.txt
   - https://www.rustworkx.org/api/algorithm_functions/isomorphism.html
 - VF2++ standalone impl.
   - https://github.com/Kahsolt/Huawei-Algotester-2024-Subgrahh-Isomorphism-Checker
+- SABRE
+  - QuICT: https://quict-docs.readthedocs.io/aa/latest/API/quict/qcda/mapping/Sabre/
+  - Qiskit: https://github.com/Qiskit/qiskit/blob/main/qiskit/transpiler/passes/layout/sabre_layout.py
 
 ----
 by Armit

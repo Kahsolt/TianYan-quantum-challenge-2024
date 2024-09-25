@@ -7,6 +7,7 @@
 from time import time
 from collections import defaultdict
 from typing import List, Tuple, NamedTuple, Set, Dict, Union
+from utils import *
 
 Nodes = List[int]
 Edges = List[Tuple[int, int]]
@@ -45,7 +46,9 @@ class State(NamedTuple):
   T1: Set[int]          # Ti contains uncovered neighbors of covered nodes from Gi, i.e. nodes that are not in the mapping, but are neighbors of nodes that are (the frontiers)
   T2: Set[int]
 
-def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float=None):
+def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, 
+                           nlim:int=None, ttl:float=None, ir:IR=None, 
+                           bound_fid:float=None, vid_to_nid_s:List[int]=None):
   # 初始化图和状态信息 (注意图的编号顺序与论文相反!!)
   G1, G2 = subgraph, graph
   G1_degree = G1.degree
@@ -89,13 +92,18 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
         reverse_mapping.pop(popped_node2)
         _restore_Tinout(popped_node1, popped_node2, graph_params, state_params)
       continue
-
+    
+    is_cut_PT = _cut_PT(current_node, candidate, graph_params, state_params)
+    cp_mapping = mapping.copy()
+    cp_mapping[current_node] = candidate
+    is_good_fid = False
+    if not is_cut_PT:
+      is_good_fid = bound_fid is None or partial_estimate_fid(ir, cp_mapping, vid_to_nid_s) > bound_fid
+    
     # 匹配成功
-    if not _cut_PT(current_node, candidate, graph_params, state_params):
+    if is_good_fid:
       # 找到一个解
       if len(mapping) == G1.n - 1:
-        cp_mapping = mapping.copy()
-        cp_mapping[current_node] = candidate
         n_found += 1
         yield cp_mapping
         continue
@@ -256,7 +264,6 @@ def _restore_Tinout(popped_node1:int, popped_node2:int, info:Info, state:State):
 ''' ↑↑↑ VF2++ standalone impl. '''
 
 from hardware_info import get_q1_info, get_q2_info, make_ordered_tuple
-from utils import *
 
 q1_info = get_q1_info()
 q2_info = get_q2_info()
@@ -280,7 +287,26 @@ def estimate_fid(ir:IR, mapping:Mapping) -> float:
     fid *= q1_info[r].readout_fidelity
   return fid
 
-def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
+def partial_estimate_fid(ir:IR, unfixed_mapping:Mapping, vid_to_nid_s:List[int]) -> float:
+  fid = 1.0
+  mapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in unfixed_mapping.items()}
+  for inst in ir:
+    if inst.is_Q2:
+      if inst.control_qubit in mapping and inst.target_qubit in mapping:
+        t = mapping[inst.target_qubit]
+        c = mapping[inst.control_qubit]
+        stats = q2_info[make_ordered_tuple(t, c)]
+        fid *= (1 - stats.cz_pauli_error_xeb)
+    else:
+      if inst.target_qubit in mapping:
+        t = mapping[inst.target_qubit]
+        stats = q1_info[t]
+        fid *= (1 - stats.pauli_error_xeb)
+  for v, r in mapping.items():
+    fid *= q1_info[r].readout_fidelity
+  return fid
+
+def run_vf2pp(qcis:str, nlim:int=None, tlim:float=30.0) -> str:
   ttl = time() + tlim
 
   # prepare circuit
@@ -295,7 +321,7 @@ def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
   cnt = 0
   best_fid = 0.0
   best_mapping = None
-  for vmapping in vf2pp_find_isomorphism(g, s, nlim, ttl):
+  for vmapping in vf2pp_find_isomorphism(g, s, nlim, ttl, ir, best_fid, vid_to_nid_s):
     # vid(s) -> vid(g) => nid(s) -> nid(g)
     mapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in vmapping.items()}
     fid = estimate_fid(ir, mapping)   

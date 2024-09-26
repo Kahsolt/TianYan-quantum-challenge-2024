@@ -4,23 +4,16 @@
 
 ### Solution
 
+⚠ 该解决方案**无第三方库依赖** :)
+
 - 首先尝试用 VF2++ 算法寻找完美匹配
   - 提出了 TrimFid 高效剪枝法则
-- 其次使用 SABRE 启发式算法寻找非完美匹配 (TODO!!)
-- 最后使用 pennylane 自带的朴素交换算法
-
-第三方库依赖: pennylane
+- 其次使用 SABRE 启发式算法寻找非完美匹配
+  - 在启发式损失函数中引入了含保真度的项
+- 最后使用朴素交换算法 (TODO!!)
 
 
 ### Quickstart
-
-⚪ install
-
-```sh
-conda create -n q python==3.10
-conda activate q
-pip install -r requirements.txt
-```
 
 ⚪ run
 

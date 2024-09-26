@@ -60,6 +60,9 @@ def zx_to_qcis(c:Circuit) -> str:
       raise ValueError(g)
   return ir_to_qcis(ir)
 
+#TODO:
+def IR_simplify(ir:IR, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> IR:
+  return ir
 
 # https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
 def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> str:

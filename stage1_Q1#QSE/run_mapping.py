@@ -4,8 +4,8 @@
 
 from argparse import ArgumentParser
 
-from run_mapping_pennylane import run_pennylane
 from run_mapping_vf2pp import run_vf2pp
+from run_mapping_sabre import run_sabre
 from utils import *
 
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
   for qcis in qcis_list:
     qcis_mapped = run_vf2pp(qcis)
     if qcis_mapped is None:
-      qcis_mapped = run_pennylane(qcis)
+      qcis_mapped = run_sabre(qcis)
     qcis_mapped_list.append(qcis_mapped)
 
   if args.fp_out:

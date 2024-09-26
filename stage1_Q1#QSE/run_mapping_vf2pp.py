@@ -233,20 +233,14 @@ def _restore_Tinout(popped_node1:int, popped_node2:int):
 
 ''' ↑↑↑ VF2++ standalone impl. '''
 
-from hardware_info import get_q1_info, get_q2_info, make_ordered_tuple
 from utils import *
 
 AccessCounter = Tuple[Dict[int, int], Dict[Tuple[int, int], int]]
 TrimFidPack = Tuple[float, List[int], AccessCounter]
 
-q1_info = get_q1_info()
-q2_info = get_q2_info()
-Q1_FID = {k: 1 - v.pauli_error_xeb    for k, v in q1_info.items()}
-Q2_FID = {k: 1 - v.cz_pauli_error_xeb for k, v in q2_info.items()}
-RD_FID = {k: v.readout_fidelity       for k, v in q1_info.items()}
-vid_to_nid = sorted(q1_info)                      # vertex_id on graph => node_id on hardware
+vid_to_nid = sorted(Q1_INFO)                      # vertex_id on graph => node_id on hardware
 nid_to_vid = lambda nid: vid_to_nid.index(nid)    # node_id on hardware => vertex_id on graph
-CHIP_GRAPH = Graph(len(vid_to_nid), [(nid_to_vid(u), nid_to_vid(v)) for u, v in q2_info.keys()])
+CHIP_GRAPH = Graph(len(vid_to_nid), [(nid_to_vid(u), nid_to_vid(v)) for u, v in Q2_INFO.keys()])
 trim_fid_pack: TrimFidPack = None
 
 def ir_to_access_counter(ir:IR) -> AccessCounter:

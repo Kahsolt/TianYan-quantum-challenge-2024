@@ -5,25 +5,17 @@
 import json
 import random
 from pathlib import Path
-from time import time
 from re import compile as Regex
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Set, Union, Optional
-
-import numpy as np
-from numpy import pi
 
 from hardware_info import *
 
 BASE_PATH = Path(__file__).parent
 DATA_PATH = BASE_PATH / 'data'
 
-isclose = lambda x, y: abs(x - y) < 1e-5
-
 
 ''' Const '''
-
-N_SHOTS = 1000
 
 @dataclass
 class GateInfo:
@@ -82,68 +74,11 @@ def load_rand_CZ_qcis(d:int=8, nq:int=10) -> str:
 
 ''' Parse QCIS '''
 
-R_INST_Q2  = Regex('(\w+) Q(\d+) Q(\d+)')
-R_INST_Q1P = Regex('(\w+) Q(\d+) (.+)')
-R_INST_Q1  = Regex('(\w+) Q(\d+)')
-
-def is_inst_Q2(inst:str) -> bool:
-  return R_INST_Q2.match(inst)
-
-def is_inst_Q1P(inst:str) -> bool:
-  return R_INST_Q1P.match(inst)
-
-def is_inst_Q1(inst:str) -> bool:
-  return R_INST_Q1.match(inst)
-
-def parse_inst_Q2(inst:str) -> Tuple[str, int, int]:
-  g, c, t = R_INST_Q2.findall(inst)[0]
-  return g, int(c), int(t)
-
-def parse_inst_Q1P(inst:str) -> Tuple[str, int, Union[str, float]]:
-  g, q, p = R_INST_Q1P.findall(inst)[0]
-  try: p = float(p)
-  except: pass
-  return g, int(q), p
-
-def parse_inst_Q1(inst:str) -> Tuple[str, int]:
-  g, q = R_INST_Q1.findall(inst)[0]
-  return g, int(q)
-
-R_INST_QIDX = Regex('Q(\d+)')
-R_INST_PNAME = Regex('([sd]1?_\d+)')   # 's_{idx}' or 'd1_{idx}'
-
-def parse_inst_qid(qidx:str) -> int:
-  return int(R_INST_QIDX.findall(qidx)[0])
-
-def parse_inst_param_name(arg:str) -> str:
-  try:
-    return R_INST_PNAME.findall(arg)[0]
-  except:
-    return arg
-
-
 @dataclass
 class CircuitInfo:
   n_qubits: int
-  n_gates: int
-  n_depth: int
   qubit_ids: List[int]
   edges: Set[Tuple[int, int]]
-
-
-def get_circuit_depth_from_edge_list(edges:Set[Tuple[int, int]]) -> int:
-  if not edges: return 0
-
-  max_qid = -1
-  for u, v in edges:
-    max_qid = max(max_qid, max(u, v))
-  n_qubits = max_qid + 1
-
-  D = [0] * n_qubits
-  for u, v in edges:
-    new_depth = max(D[u], D[v]) + 1
-    D[u] = D[v] = new_depth
-  return max(D)
 
 def qcis_info(qcis:str) -> CircuitInfo:
   n_gates = 0
@@ -162,11 +97,25 @@ def qcis_info(qcis:str) -> CircuitInfo:
 
   return CircuitInfo(
     n_qubits=len(vertexes), 
-    n_depth=get_circuit_depth_from_edge_list(edges),
-    n_gates=n_gates, 
     qubit_ids=sorted(vertexes),
     edges=edges,
   )
+
+def qcis_estimate_fid(qcis:str) -> float:
+  info = qcis_info(qcis)
+  ir = qcis_to_ir(qcis)
+  fid = 1.0
+  for inst in ir:
+    if inst.is_Q2:
+      t = inst.target_qubit
+      c = inst.control_qubit
+      fid *= Q2_FID[make_ordered_tuple(t, c)]
+    else:
+      t = inst.target_qubit
+      fid *= Q1_FID[t]
+  for q in info.qubit_ids:
+    fid *= RD_FID[q]
+  return fid
 
 
 ''' Format Convert '''
@@ -203,6 +152,37 @@ class Inst:
 IR = List[Inst]
 PR = Dict[str, float]
 
+R_INST_Q2   = Regex('(\w+) Q(\d+) Q(\d+)')
+R_INST_Q1P  = Regex('(\w+) Q(\d+) (.+)')
+R_INST_Q1   = Regex('(\w+) Q(\d+)')
+R_INST_QIDX = Regex('Q(\d+)')
+
+def is_inst_Q2(inst:str) -> bool:
+  return R_INST_Q2.match(inst)
+
+def is_inst_Q1P(inst:str) -> bool:
+  return R_INST_Q1P.match(inst)
+
+def is_inst_Q1(inst:str) -> bool:
+  return R_INST_Q1.match(inst)
+
+def parse_inst_Q2(inst:str) -> Tuple[str, int, int]:
+  g, c, t = R_INST_Q2.findall(inst)[0]
+  return g, int(c), int(t)
+
+def parse_inst_Q1P(inst:str) -> Tuple[str, int, Union[str, float]]:
+  g, q, p = R_INST_Q1P.findall(inst)[0]
+  try: p = float(p)
+  except: pass
+  return g, int(q), p
+
+def parse_inst_Q1(inst:str) -> Tuple[str, int]:
+  g, q = R_INST_Q1.findall(inst)[0]
+  return g, int(q)
+
+def parse_inst_qid(qidx:str) -> int:
+  return int(R_INST_QIDX.findall(qidx)[0])
+
 def ir_to_qcis(ir:IR) -> str:
   return '\n'.join([inst.to_qcis() for inst in ir])
 
@@ -222,15 +202,3 @@ def qcis_to_ir(qcis:str) -> IR:
     else:
       raise ValueError(f'>> unknown inst format: {inst}')
   return ir
-
-
-''' Misc '''
-
-def timer(fn):
-  def wrapper(*args, **kwargs):
-    start = time()
-    r = fn(*args, **kwargs)
-    end = time()
-    print(f'[Timer]: {fn.__name__} took {end - start:.3f}s')
-    return r
-  return wrapper

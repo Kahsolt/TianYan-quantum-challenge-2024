@@ -106,3 +106,11 @@ def get_coupling_qubits() -> List[int]:
       vset.add(v)
     COUPLING_QUBITS = list(vset)
   return COUPLING_QUBITS
+
+# global init
+get_q1_info()
+get_q2_info()
+
+Q1_FID = {k: 1 - v.pauli_error_xeb    for k, v in Q1_INFO.items()}
+Q2_FID = {k: 1 - v.cz_pauli_error_xeb for k, v in Q2_INFO.items()}
+RD_FID = {k: v.readout_fidelity       for k, v in Q1_INFO.items()}

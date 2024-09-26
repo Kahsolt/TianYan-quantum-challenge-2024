@@ -168,6 +168,22 @@ def qcis_info(qcis:str) -> CircuitInfo:
     edges=edges,
   )
 
+def qcis_estimate_fid(qcis:str) -> float:
+  info = qcis_info(qcis)
+  ir = qcis_to_ir(qcis)
+  fid = 1.0
+  for inst in ir:
+    if inst.is_Q2:
+      t = inst.target_qubit
+      c = inst.control_qubit
+      fid *= Q2_FID[make_ordered_tuple(t, c)]
+    else:
+      t = inst.target_qubit
+      fid *= Q1_FID[t]
+  for q in info.qubit_ids:
+    fid *= RD_FID[q]
+  return fid
+
 
 ''' Format Convert '''
 

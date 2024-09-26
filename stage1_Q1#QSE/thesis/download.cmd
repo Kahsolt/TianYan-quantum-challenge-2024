@@ -14,3 +14,6 @@ wget -nc https://arxiv.org/pdf/quant-ph/0302002.pdf
 
 REM (Sabre) Tackling the Qubit Mapping Problem for NISQ-Era Quantum Devices
 wget -nc https://arxiv.org/pdf/1809.02573.pdf
+
+REM LightSABRE: A Lightweight and Enhanced SABRE Algorithm
+wget -nc https://arxiv.org/pdf/2409.08368.pdf

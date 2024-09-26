@@ -287,7 +287,7 @@ def estimate_fid_incr(acc_cntr:AccessCounter, mapping:Mapping, u:int, v:int) -> 
   fid *= RD_FID[v]
   return fid
 
-def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
+def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=None) -> str:
   global trim_fid_pack
   ttl = (time() + tlim) if tlim else None
 
@@ -325,33 +325,22 @@ def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
 
 
 if __name__ == '__main__':
-  # TODO: 下列数据失效了，需重测
-  # [benchmark for nq=33 (tlim=30)]
-  # 一系列数据结构优化
-  #   - found 403478 mappings; best_fid: 0.041003316278704294
-  #   - found 531236 mappings; best_fid: 0.04100331627870427
-  #   - found 557902 mappings; best_fid: 0.04100331627870427
-  #   - found 578847 mappings; best_fid: 0.04100331627870427
-  # 加入 trim_fid_pack 剪枝后能搜更多分支了，但因为中途剪枝了所以最终找到的分支计数较少
-  #   - found 374118 mappings; best_fid: 0.04100331627870427
-
-  # TODO: 下列数据失效了，需重测
   # [benchmark for tlim=None]
-  # 关闭 trim_fid_pack 剪枝
-  #   [nq= 9] found   56978 mappings; best_fid: 0.5144110729815167;  runtime: 0.6875786781311035
-  #   [nq=11] found  247044 mappings; best_fid: 0.44201921751638257; runtime: 3.421604871749878
-  #   [nq=13] found  966880 mappings; best_fid: 0.3821530710071378;  runtime: 15.01598596572876
-  #   [nq=15] found 3441654 mappings; best_fid: 0.3244734894481889;  runtime: 57.74477219581604
-  # 开启 trim_fid_pack 剪枝
-  #   [nq= 9] found   1216 mappings; best_fid: 0.5144110729815167;  runtime: 0.10795950889587402
-  #   [nq=11] found   2460 mappings; best_fid: 0.44201921751638257; runtime: 0.338176965713501
-  #   [nq=13] found   5364 mappings; best_fid: 0.3821530710071378;  runtime: 1.0307841300964355
-  #   [nq=15] found  11776 mappings; best_fid: 0.3244734894481889;  runtime: 3.2285618782043457
-  #   [nq=17] found  29616 mappings; best_fid: 0.2788127960393005;  runtime: 9.969574689865112
-  #   [nq=19] found  88244 mappings; best_fid: 0.23725726503598837; runtime: 29.19752812385559
-  #   [nq=21] found 253410 mappings; best_fid: 0.19806676146387084; runtime: 84.75223445892334
-
-  qcis_list = load_sample_set_nq(13)
+  # 关闭trim_fid_pack剪枝
+  #  [nq= 9] found   56978 mappings; best_fid: 0.5686504931929576,  runtime: 0.6369662284851074
+  #  [nq=11] found  247044 mappings; best_fid: 0.4965680148492606,  runtime: 3.3066375255584717
+  #  [nq=13] found  966880 mappings; best_fid: 0.43491266123353134, runtime: 14.545265913009644
+  #  [nq=15] found 3441654 mappings; best_fid: 0.3815911321780046,  runtime: 56.00343084335327
+  # 开启trim_fid_pack剪枝
+  #  [nq= 9] found    3396 mappings; best_fid: 0.5686504931929576,  runtime: 0.1891191005706787
+  #  [nq=11] found    5342 mappings; best_fid: 0.4965680148492606,  runtime: 0.6474573612213135
+  #  [nq=13] found   10198 mappings; best_fid: 0.43491266123353134, runtime: 2.348483085632324
+  #  [nq=15] found   16562 mappings; best_fid: 0.3815911321780046,  runtime: 7.70478081703186
+  #  [nq=17] found   35131 mappings; best_fid: 0.33111007964936534, runtime: 23.759277820587158
+  #  [nq=19] found   86974 mappings; best_fid: 0.2870746829416863,  runtime: 71.21201491355896
+  #  [nq=21] found  210207 mappings; best_fid: 0.24484806020099664, runtime: 205.14678239822388
+  
+  qcis_list = load_sample_set_nq(21)
   qcis = qcis_list[0]
   ts_start = time()
   qcis_mapped = run_vf2pp(qcis, nlim=None, tlim=None)

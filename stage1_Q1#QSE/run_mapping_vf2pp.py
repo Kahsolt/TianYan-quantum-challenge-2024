@@ -45,6 +45,8 @@ T1:          Set[int] = set()   # Ti contains uncovered neighbors of covered nod
 T2:          Set[int] = set()
 
 def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float=None):
+  global trim_fid_pack
+
   # 初始化图和状态信息 (注意图的编号顺序与论文相反!!)
   global G1, G2, mapping, mapping_rev, T1, T2
   G1, G2 = subgraph, graph
@@ -60,9 +62,9 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
   node_order = _matching_order()
 
   # 初始化DFS栈
-  stack: List[int, Nodes] = []
+  stack: List[int, Nodes, float] = []
   candidates = iter(_find_candidates(node_order[0]))
-  stack.append((node_order[0], candidates))
+  stack.append((node_order[0], candidates, 1.0))
   matching_node = 1
   # 开始DFS!!
   n_found = 0
@@ -70,7 +72,7 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
     if ttl and time() >= ttl: break
     if nlim and n_found >= nlim: break
 
-    current_node, candidate_nodes = stack[-1]
+    current_node, candidate_nodes, pfid = stack[-1]
 
     # 匹配失败，回溯
     try:
@@ -81,7 +83,7 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
       matching_node -= 1
       if stack:
         # Pop the previously added u-v pair, and look for a different candidate _v for u
-        popped_node1, _ = stack[-1]
+        popped_node1, _, _ = stack[-1]
         popped_node2 = mapping[popped_node1]
         mapping.pop(popped_node1)
         mapping_rev.pop(popped_node2)
@@ -98,13 +100,20 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
         yield cp_mapping
         continue
 
+      if trim_fid_pack is not None:
+        best_fid, vid_to_nid_s, acc_cntr = trim_fid_pack
+        pmapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in mapping.items()}
+        pfid *= estimate_fid_incr(acc_cntr, pmapping, vid_to_nid_s[current_node], vid_to_nid[candidate])
+        if pfid <= best_fid:
+          continue
+
       # Feasibility rules pass, so extend the mapping and update the parameters
       mapping[current_node] = candidate
       mapping_rev[candidate] = current_node
       _update_Tinout(current_node, candidate)
       # Append the next node and its candidates to the stack
       candidates = iter(_find_candidates(node_order[matching_node]))
-      stack.append((node_order[matching_node], candidates))
+      stack.append((node_order[matching_node], candidates, pfid))
       matching_node += 1
 
 def accumulated_groups(many_to_one:Union[dict, list]) -> Groups:
@@ -228,6 +237,7 @@ from hardware_info import get_q1_info, get_q2_info, make_ordered_tuple
 from utils import *
 
 AccessCounter = Tuple[Dict[int, int], Dict[Tuple[int, int], int]]
+TrimFidPack = Tuple[float, List[int], AccessCounter]
 
 q1_info = get_q1_info()
 q2_info = get_q2_info()
@@ -237,6 +247,7 @@ RD_FID = {k: v.readout_fidelity       for k, v in q1_info.items()}
 vid_to_nid = sorted(q1_info)                      # vertex_id on graph => node_id on hardware
 nid_to_vid = lambda nid: vid_to_nid.index(nid)    # node_id on hardware => vertex_id on graph
 CHIP_GRAPH = Graph(len(vid_to_nid), [(nid_to_vid(u), nid_to_vid(v)) for u, v in q2_info.keys()])
+trim_fid_pack: TrimFidPack = None
 
 def ir_to_access_counter(ir:IR) -> AccessCounter:
   q1_cntr, q2_cntr = {}, {}
@@ -265,8 +276,26 @@ def estimate_fid(acc_cntr:AccessCounter, mapping:Mapping) -> float:
     fid *= RD_FID[r]
   return fid
 
-def run_vf2pp(qcis:str, nlim:int=None, tlim:float=None) -> str:
-  ttl = time() + tlim
+def estimate_fid_incr(acc_cntr:AccessCounter, mapping:Mapping, u:int, v:int) -> float:
+  # u, v 已是芯片上物理节点ID
+  q1_cntr, q2_cntr = acc_cntr
+  fid = 1.0
+  for (q0, q1), cnt in q2_cntr.items():
+    # q0, q1 有且仅有一个已映射
+    if (q0 in mapping) == (q1 in mapping): continue
+    # 还没映射的那个恰好是当前的 u
+    if q0 in mapping and u != q1: continue
+    if q1 in mapping and u != q0: continue
+    # 两个比特都被映射，可以估值了
+    vv = mapping[q0] if q0 in mapping else mapping[q1]
+    fid *= Q2_FID[make_ordered_tuple(vv, v)] ** cnt
+  fid *= Q1_FID[v] ** q1_cntr[u]
+  fid *= RD_FID[v]
+  return fid
+
+def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
+  global trim_fid_pack
+  ttl = (time() + tlim) if tlim else None
 
   # prepare circuit
   ir = qcis_to_ir(qcis)
@@ -288,6 +317,8 @@ def run_vf2pp(qcis:str, nlim:int=None, tlim:float=None) -> str:
     if fid > best_fid:
       best_fid = fid
       best_mapping = mapping
+    # NOTE: 注释掉下面这行即可关闭 trim_fid_pack 剪枝 :(
+    trim_fid_pack = best_fid, vid_to_nid_s, acc_cntr
     cnt += 1
   print(f'>> found {cnt} mappings; best_fid: {best_fid}, best_mapping: {best_mapping}')
   # handle failure
@@ -300,15 +331,33 @@ def run_vf2pp(qcis:str, nlim:int=None, tlim:float=None) -> str:
 
 
 if __name__ == '__main__':
-  qcis_list = load_sample_set_nq(33)
-  for qcis in qcis_list:
-    # [30s benchmark for nq=33]
-    # - found 403478 mappings; best_fid: 0.041003316278704294
-    # - found 531236 mappings; best_fid: 0.04100331627870427
-    # - found 557902 mappings; best_fid: 0.04100331627870427
-    # - found 578847 mappings; best_fid: 0.04100331627870427
-    ts_start = time()
-    qcis_mapped = run_vf2pp(qcis, nlim=None, tlim=30.0)
-    ts_end = time()
-    print('runtime:', ts_end - ts_start)
-    break
+  # [benchmark for nq=33 (tlim=30)]
+  # 一系列数据结构优化
+  #   - found 403478 mappings; best_fid: 0.041003316278704294
+  #   - found 531236 mappings; best_fid: 0.04100331627870427
+  #   - found 557902 mappings; best_fid: 0.04100331627870427
+  #   - found 578847 mappings; best_fid: 0.04100331627870427
+  # 加入 trim_fid_pack 剪枝后能搜更多分支了，但因为中途剪枝了所以最终找到的分支计数较少
+  #   - found 374118 mappings; best_fid: 0.04100331627870427
+
+  # [benchmark for tlim=None]
+  # 关闭 trim_fid_pack 剪枝
+  #   [nq= 9] found   56978 mappings; best_fid: 0.5144110729815167;  runtime: 0.6875786781311035
+  #   [nq=11] found  247044 mappings; best_fid: 0.44201921751638257; runtime: 3.421604871749878
+  #   [nq=13] found  966880 mappings; best_fid: 0.3821530710071378;  runtime: 15.01598596572876
+  #   [nq=15] found 3441654 mappings; best_fid: 0.3244734894481889;  runtime: 57.74477219581604
+  # 开启 trim_fid_pack 剪枝
+  #   [nq= 9] found   1216 mappings; best_fid: 0.5144110729815167;  runtime: 0.10795950889587402
+  #   [nq=11] found   2460 mappings; best_fid: 0.44201921751638257; runtime: 0.338176965713501
+  #   [nq=13] found   5364 mappings; best_fid: 0.3821530710071378;  runtime: 1.0307841300964355
+  #   [nq=15] found  11776 mappings; best_fid: 0.3244734894481889;  runtime: 3.2285618782043457
+  #   [nq=17] found  29616 mappings; best_fid: 0.2788127960393005;  runtime: 9.969574689865112
+  #   [nq=19] found  88244 mappings; best_fid: 0.23725726503598837; runtime: 29.19752812385559
+  #   [nq=21] found 253410 mappings; best_fid: 0.19806676146387084; runtime: 84.75223445892334
+
+  qcis_list = load_sample_set_nq(13)
+  qcis = qcis_list[0]
+  ts_start = time()
+  qcis_mapped = run_vf2pp(qcis, nlim=None, tlim=None)
+  ts_end = time()
+  print('runtime:', ts_end - ts_start)

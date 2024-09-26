@@ -48,8 +48,7 @@ class State(NamedTuple):
 def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float=None):
   # 初始化图和状态信息 (注意图的编号顺序与论文相反!!)
   G1, G2 = subgraph, graph
-  G1_degree = G1.degree
-  graph_params, state_params = _initialize_parameters(G1, G2, G1_degree, G2.degree)
+  graph_params, state_params = _initialize_parameters(G1, G2)
 
   # 剪枝检查: 大图覆盖子图度数计数
   if not set(graph_params.G1_nodes_cover_degree).issubset(graph_params.G2_nodes_cover_degree): return
@@ -63,7 +62,7 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
 
   # 初始化DFS栈
   stack: List[int, Nodes] = []
-  candidates = iter(_find_candidates(node_order[0], graph_params, state_params, G1_degree))
+  candidates = iter(_find_candidates(node_order[0], graph_params, state_params))
   stack.append((node_order[0], candidates))
   matching_node = 1
   # 开始DFS!!
@@ -105,7 +104,7 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
       reverse_mapping[candidate] = current_node
       _update_Tinout(current_node, candidate, graph_params, state_params)
       # Append the next node and its candidates to the stack
-      candidates = iter(_find_candidates(node_order[matching_node], graph_params, state_params, G1_degree))
+      candidates = iter(_find_candidates(node_order[matching_node], graph_params, state_params))
       stack.append((node_order[matching_node], candidates))
       matching_node += 1
 
@@ -135,12 +134,12 @@ def bfs_layers(G:Graph, source:int):
           next_layer.append(child)
     current_layer = next_layer
 
-def _initialize_parameters(G1:Graph, G2:Graph, G1_degree:Degrees, G2_degree:Degrees):
+def _initialize_parameters(G1:Graph, G2:Graph):
   info = Info(
     G1,
     G2,
-    accumulated_groups(G1_degree),
-    accumulated_groups(G2_degree),
+    accumulated_groups(G1.degree),
+    accumulated_groups(G2.degree),
   )
   state = State(
     {},
@@ -183,14 +182,14 @@ def _matching_order(info:Info):
 
   return node_order
 
-def _find_candidates(u:int, info:Info, state:State, G1_degree:Degrees):
+def _find_candidates(u:int, info:Info, state:State):
   G1, G2, _, G2_nodes_cover_degree = info
   mapping, reverse_mapping, _, _ = state
 
   # 节点 u 的一些近邻已在映射中？
   covered_neighbors = [nbr for nbr in G1[u] if nbr in mapping]
   # 覆盖子图节点 u 度数的大图节点 v
-  valid_degree_nodes = G2_nodes_cover_degree[G1_degree[u]]
+  valid_degree_nodes = G2_nodes_cover_degree[G1.degree[u]]
 
   # 初始情况，从 G2 全图选匹配点
   if not covered_neighbors:
@@ -258,47 +257,64 @@ def _restore_Tinout(popped_node1:int, popped_node2:int, info:Info, state:State):
 from hardware_info import get_q1_info, get_q2_info, make_ordered_tuple
 from utils import *
 
+AccessCounter = Tuple[Dict[int, int], Dict[Tuple[int, int], int]]
+
 q1_info = get_q1_info()
 q2_info = get_q2_info()
+Q1_FID = {k: 1 - v.pauli_error_xeb    for k, v in q1_info.items()}
+Q2_FID = {k: 1 - v.cz_pauli_error_xeb for k, v in q2_info.items()}
+RD_FID = {k: v.readout_fidelity       for k, v in q1_info.items()}
 vid_to_nid = sorted(q1_info)                      # vertex_id on graph => node_id on hardware
 nid_to_vid = lambda nid: vid_to_nid.index(nid)    # node_id on hardware => vertex_id on graph
 CHIP_GRAPH = Graph(len(vid_to_nid), [(nid_to_vid(u), nid_to_vid(v)) for u, v in q2_info.keys()])
 
-def estimate_fid(ir:IR, mapping:Mapping) -> float:
-  fid = 1.0
+def ir_to_access_counter(ir:IR) -> AccessCounter:
+  q1_cntr, q2_cntr = {}, {}
   for inst in ir:
     if inst.is_Q2:
-      t = mapping[inst.target_qubit]
-      c = mapping[inst.control_qubit]
-      stats = q2_info[make_ordered_tuple(t, c)]
-      fid *= (1 - stats.cz_pauli_error_xeb)
+      t = inst.target_qubit
+      c = inst.control_qubit
+      k = make_ordered_tuple(t, c)
+      q2_cntr[k] = 1 + q2_cntr.get(k, 0)
     else:
-      t = mapping[inst.target_qubit]
-      stats = q1_info[t]
-      fid *= (1 - stats.pauli_error_xeb)
+      t = inst.target_qubit
+      q1_cntr[t] = 1 + q1_cntr.get(t, 0)
+  return q1_cntr, q2_cntr
+
+def estimate_fid(acc_cntr:AccessCounter, mapping:Mapping) -> float:
+  q1_cntr, q2_cntr = acc_cntr
+  fid = 1.0
+  for (u, v), cnt in q2_cntr.items():
+    t = mapping[u]
+    c = mapping[v]
+    fid *= Q2_FID[make_ordered_tuple(t, c)] ** cnt
+  for u, cnt in q1_cntr.items():
+    t = mapping[u]
+    fid *= Q1_FID[t] ** cnt
   for v, r in mapping.items():
-    fid *= q1_info[r].readout_fidelity
+    fid *= RD_FID[r]
   return fid
 
-def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
+def run_vf2pp(qcis:str, nlim:int=None, tlim:float=None) -> str:
   ttl = time() + tlim
 
   # prepare circuit
   ir = qcis_to_ir(qcis)
-  # find mappings
+  acc_cntr = ir_to_access_counter(ir)
+  # prepare graph
   g = CHIP_GRAPH
   info = qcis_info(qcis)
   vid_to_nid_s = info.qubit_ids
   nid_to_vid_s = lambda nid: vid_to_nid_s.index(nid)
   s = Graph(len(vid_to_nid_s), [(nid_to_vid_s(u), nid_to_vid_s(v)) for u, v in info.edges])
-
+  # find mappings
   cnt = 0
   best_fid = 0.0
   best_mapping = None
   for vmapping in vf2pp_find_isomorphism(g, s, nlim, ttl):
     # vid(s) -> vid(g) => nid(s) -> nid(g)
     mapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in vmapping.items()}
-    fid = estimate_fid(ir, mapping)   
+    fid = estimate_fid(acc_cntr, mapping)   
     if fid > best_fid:
       best_fid = fid
       best_mapping = mapping
@@ -314,6 +330,13 @@ def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
 
 
 if __name__ == '__main__':
-  qcis_list = load_sample_set_nq(7)
+  qcis_list = load_sample_set_nq(33)
   for qcis in qcis_list:
-    qcis_mapped = run_vf2pp(qcis)
+    # [30s benchmark for nq=33]
+    # - found 403478 mappings; best_fid: 0.041003316278704294
+    # - found 531236 mappings; best_fid: 0.04100331627870427
+    ts_start = time()
+    qcis_mapped = run_vf2pp(qcis, nlim=None, tlim=30.0)
+    ts_end = time()
+    print('runtime:', ts_end - ts_start)
+    break

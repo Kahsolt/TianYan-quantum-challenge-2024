@@ -46,9 +46,11 @@ class State(NamedTuple):
   T1: Set[int]          # Ti contains uncovered neighbors of covered nodes from Gi, i.e. nodes that are not in the mapping, but are neighbors of nodes that are (the frontiers)
   T2: Set[int]
 
-def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, 
-                           nlim:int=None, ttl:float=None, ir:IR=None, 
-                           bound_fid:float=None, vid_to_nid_s:List[int]=None):
+TrimFidPack = Tuple[IR, float, List[int]]
+trim_fid_pack: TrimFidPack = None
+
+@profile
+def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float=None):
   # 初始化图和状态信息 (注意图的编号顺序与论文相反!!)
   G1, G2 = subgraph, graph
   G1_degree = G1.degree
@@ -92,18 +94,27 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph,
         reverse_mapping.pop(popped_node2)
         _restore_Tinout(popped_node1, popped_node2, graph_params, state_params)
       continue
-    
+
     is_cut_PT = _cut_PT(current_node, candidate, graph_params, state_params)
-    cp_mapping = mapping.copy()
-    cp_mapping[current_node] = candidate
-    is_good_fid = False
-    if not is_cut_PT:
-      is_good_fid = bound_fid is None or partial_estimate_fid(ir, cp_mapping, vid_to_nid_s) > bound_fid
-    
+    cp_mapping = None
+
+    global trim_fid_pack
+    if trim_fid_pack is None:
+      is_trim_fid = False
+    elif not is_cut_PT:
+      ir, bound_fid, vid_to_nid_s = trim_fid_pack
+      cp_mapping = mapping.copy()
+      cp_mapping[current_node] = candidate
+      p_mapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in cp_mapping.items()}
+      is_trim_fid = not check_fid_partial(ir, p_mapping, bound_fid)
+
     # 匹配成功
-    if is_good_fid:
+    if not is_cut_PT and not is_trim_fid:
       # 找到一个解
       if len(mapping) == G1.n - 1:
+        if cp_mapping is None:
+          cp_mapping = mapping.copy()
+          cp_mapping[current_node] = candidate
         n_found += 1
         yield cp_mapping
         continue
@@ -271,25 +282,9 @@ vid_to_nid = sorted(q1_info)                      # vertex_id on graph => node_i
 nid_to_vid = lambda nid: vid_to_nid.index(nid)    # node_id on hardware => vertex_id on graph
 CHIP_GRAPH = Graph(len(vid_to_nid), [(nid_to_vid(u), nid_to_vid(v)) for u, v in q2_info.keys()])
 
+@profile
 def estimate_fid(ir:IR, mapping:Mapping) -> float:
   fid = 1.0
-  for inst in ir:
-    if inst.is_Q2:
-      t = mapping[inst.target_qubit]
-      c = mapping[inst.control_qubit]
-      stats = q2_info[make_ordered_tuple(t, c)]
-      fid *= (1 - stats.cz_pauli_error_xeb)
-    else:
-      t = mapping[inst.target_qubit]
-      stats = q1_info[t]
-      fid *= (1 - stats.pauli_error_xeb)
-  for v, r in mapping.items():
-    fid *= q1_info[r].readout_fidelity
-  return fid
-
-def partial_estimate_fid(ir:IR, unfixed_mapping:Mapping, vid_to_nid_s:List[int]) -> float:
-  fid = 1.0
-  mapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in unfixed_mapping.items()}
   for inst in ir:
     if inst.is_Q2:
       if inst.control_qubit in mapping and inst.target_qubit in mapping:
@@ -306,7 +301,30 @@ def partial_estimate_fid(ir:IR, unfixed_mapping:Mapping, vid_to_nid_s:List[int])
     fid *= q1_info[r].readout_fidelity
   return fid
 
-def run_vf2pp(qcis:str, nlim:int=None, tlim:float=30.0) -> str:
+@profile
+def check_fid_partial(ir:IR, mapping:Mapping, bound_fid:float) -> bool:
+  fid = 1.0
+  for inst in ir:
+    if inst.is_Q2:
+      if inst.control_qubit in mapping and inst.target_qubit in mapping:  # <- 开销？
+        t = mapping[inst.target_qubit]
+        c = mapping[inst.control_qubit]
+        stats = q2_info[make_ordered_tuple(t, c)]
+        fid *= (1 - stats.cz_pauli_error_xeb)
+        if fid < bound_fid: return False
+    else:
+      if inst.target_qubit in mapping:
+        t = mapping[inst.target_qubit]
+        stats = q1_info[t]
+        fid *= (1 - stats.pauli_error_xeb)
+        if fid < bound_fid: return False
+  for v, r in mapping.items():
+    fid *= q1_info[r].readout_fidelity
+    if fid < bound_fid: return False
+  return True
+
+def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
+  global trim_fid_pack
   ttl = time() + tlim
 
   # prepare circuit
@@ -321,13 +339,14 @@ def run_vf2pp(qcis:str, nlim:int=None, tlim:float=30.0) -> str:
   cnt = 0
   best_fid = 0.0
   best_mapping = None
-  for vmapping in vf2pp_find_isomorphism(g, s, nlim, ttl, ir, best_fid, vid_to_nid_s):
+  for vmapping in vf2pp_find_isomorphism(g, s, nlim, ttl):
     # vid(s) -> vid(g) => nid(s) -> nid(g)
     mapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in vmapping.items()}
     fid = estimate_fid(ir, mapping)   
     if fid > best_fid:
       best_fid = fid
       best_mapping = mapping
+    trim_fid_pack = (ir, best_fid, vid_to_nid_s)
     cnt += 1
   print(f'>> found {cnt} mappings; best_fid: {best_fid}, best_mapping: {best_mapping}')
   # handle failure
@@ -340,6 +359,7 @@ def run_vf2pp(qcis:str, nlim:int=None, tlim:float=30.0) -> str:
 
 
 if __name__ == '__main__':
-  qcis_list = load_sample_set_nq(7)
+  qcis_list = load_sample_set_nq(23)
   for qcis in qcis_list:
     qcis_mapped = run_vf2pp(qcis)
+    break

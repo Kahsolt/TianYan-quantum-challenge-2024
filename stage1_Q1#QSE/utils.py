@@ -209,6 +209,7 @@ def ir_to_qcis(ir:IR) -> str:
 def qcis_to_ir(qcis:str) -> IR:
   ir = []
   for inst in qcis.split('\n'):
+    if inst.startswith(f'{BARRIER_GATE} '): continue    # ignore BARRIER gate :(
     if is_inst_Q2(inst):
       g, c, t = parse_inst_Q2(inst)
       ir.append(Inst(g, t, control_qubit=c))

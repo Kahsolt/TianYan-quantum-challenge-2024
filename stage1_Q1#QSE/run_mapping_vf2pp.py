@@ -331,6 +331,7 @@ def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=30.0) -> str:
 
 
 if __name__ == '__main__':
+  # TODO: 下列数据失效了，需重测
   # [benchmark for nq=33 (tlim=30)]
   # 一系列数据结构优化
   #   - found 403478 mappings; best_fid: 0.041003316278704294
@@ -340,6 +341,7 @@ if __name__ == '__main__':
   # 加入 trim_fid_pack 剪枝后能搜更多分支了，但因为中途剪枝了所以最终找到的分支计数较少
   #   - found 374118 mappings; best_fid: 0.04100331627870427
 
+  # TODO: 下列数据失效了，需重测
   # [benchmark for tlim=None]
   # 关闭 trim_fid_pack 剪枝
   #   [nq= 9] found   56978 mappings; best_fid: 0.5144110729815167;  runtime: 0.6875786781311035

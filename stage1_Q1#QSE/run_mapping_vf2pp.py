@@ -283,7 +283,7 @@ def estimate_fid_incr(acc_cntr:AccessCounter, mapping:Mapping, u:int, v:int) -> 
     # 两个比特都被映射，可以估值了
     vv = mapping[q0] if q0 in mapping else mapping[q1]
     fid *= Q2_FID[make_ordered_tuple(vv, v)] ** cnt
-  fid *= Q1_FID[v] ** q1_cntr[u]
+  fid *= Q1_FID[v] ** q1_cntr.get(u, 0)
   fid *= RD_FID[v]
   return fid
 
@@ -304,6 +304,7 @@ def run_vf2pp(qcis:str, nlim:int=100000, tlim:float=None) -> str:
   cnt = 0
   best_fid = 0.0
   best_mapping = None
+  trim_fid_pack = None
   for vmapping in vf2pp_find_isomorphism(g, s, nlim, ttl):
     # vid(s) -> vid(g) => nid(s) -> nid(g)
     mapping = {vid_to_nid_s[k]: vid_to_nid[v] for k, v in vmapping.items()}
@@ -340,7 +341,7 @@ if __name__ == '__main__':
   #  [nq=19] found   86974 mappings; best_fid: 0.2870746829416863,  runtime: 71.21201491355896
   #  [nq=21] found  210207 mappings; best_fid: 0.24484806020099664, runtime: 205.14678239822388
   
-  qcis_list = load_sample_set_nq(21)
+  qcis_list = load_sample_set_nq(13)
   qcis = qcis_list[0]
   ts_start = time()
   qcis_mapped = run_vf2pp(qcis, nlim=None, tlim=None)

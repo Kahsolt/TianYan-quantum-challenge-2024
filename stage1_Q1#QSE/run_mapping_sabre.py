@@ -259,14 +259,17 @@ def sabre_transpile_pass(ir:IR, nq:int, size_E:int=20, w:float=0.5, eps:float=0.
 
   return insts_mapped, l2p
 
-def run_sabre(qcis:str, n_trial:int=1000, init:str='maxfid', tlim:float=15.0) -> str:
+def run_sabre(qcis:str, n_trial:int=1000, init:str='maxfid', tlim:float=10.0) -> str:
   ttl = (time() + tlim) if tlim else None
 
   info = qcis_info(qcis)
   ir = qcis_to_ir(qcis)
+  if 'tmpfix for random circuit':
+    nq = max(info.n_qubits, max(info.qubit_ids)+1)
   if init != 'none':
     coupling_qids = get_coupling_qubits()
     fid_qid_list = sorted([(fid, qid) for qid, fid in Q1_FID.items() if qid in coupling_qids], reverse=True)
+    valid_qids = [qid for _, qid in fid_qid_list[:int(nq * 1.25)]]
 
   best_fid = 0.0
   best_qcis = None
@@ -278,13 +281,13 @@ def run_sabre(qcis:str, n_trial:int=1000, init:str='maxfid', tlim:float=15.0) ->
     elif init == 'random':
       mapping = random.sample(coupling_qids, info.n_qubits)
     elif init == 'maxfid':
-      mapping = [qid for _, qid in fid_qid_list[:info.n_qubits]]
+      mapping = random.sample(valid_qids, nq)
       random.shuffle(mapping)
     else:
       raise ValueError(f'>> unknown init: {init}')
     try:
-      ir_new, mapping = sabre_transpile_pass(ir, info.n_qubits, initial_l2p=mapping, ttl=ttl)
-      ir_new, _ = sabre_transpile_pass(ir[::-1], info.n_qubits, initial_l2p=mapping, ttl=ttl)
+      ir_new, mapping = sabre_transpile_pass(ir, nq, initial_l2p=mapping, ttl=ttl)
+      ir_new, _ = sabre_transpile_pass(ir[::-1], nq, initial_l2p=mapping, ttl=ttl)
       qcis_new = ir_to_qcis(ir_new)
       fid = qcis_estimate_fid(qcis_new)
       if fid > best_fid:
@@ -300,8 +303,8 @@ if __name__ == '__main__':
   qcis_list = load_sample_set_nq(13)
   qcis = qcis_list[0]
   ts_start = time()
-  qcis_mapped = run_sabre(qcis, tlim=15.0)
+  qcis_mapped = run_sabre(qcis, tlim=10.0)
   if qcis_mapped is not None:
-    print('>> Estimated fid:', qcis_estimate_fid(qcis_mapped))
+        print('>> Estimated fid:', qcis_estimate_fid(qcis_mapped))
   ts_end = time()
   print('runtime:', ts_end - ts_start)

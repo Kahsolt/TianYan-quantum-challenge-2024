@@ -4,3 +4,6 @@ thesis/*
 
 # out
 out/
+
+# lprof
+*.lprof

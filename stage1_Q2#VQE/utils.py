@@ -274,31 +274,6 @@ def ir_depth(ir:IR) -> int:
       edges.append((inst.target_qubit, inst.control_qubit))
   return get_circuit_depth_from_edge_list(edges)
 
-def ir_info(ir: IR) -> CircuitInfo:
-  n_gates = len(ir)  # 门的数量
-  gate_types = set()  # 存储门的类型
-  qubit_ids = set()  # 存储量子比特的唯一标识
-  param_names = set()  # 存储参数名称
-  edges: List[Tuple[int, int]] = []
-
-  for inst in ir:
-      gate_types.add(inst.gate)  # 添加门的类型
-      qubit_ids.add(inst.target_qubit)  # 添加目标量子比特
-      gate_types.add(inst.gate)  # 添加门的类型
-      if inst.is_Q2:
-        qubit_ids.add(inst.control_qubit)
-        edges.append((inst.target_qubit, inst.control_qubit))
-      if inst.param is not None:  # 如果有参数，添加参数名称
-        param_names.add(inst.param)
-  return CircuitInfo(
-    n_qubits=len(qubit_ids), 
-    n_depth=get_circuit_depth_from_edge_list(edges),
-    n_gates=n_gates, 
-    n_gate_types=len(gate_types),
-    qubit_ids=sorted(qubit_ids), 
-    gate_types=sorted(gate_types),
-    param_names=sorted(param_names),
-  )
 
 def ir_to_qcis(ir:IR) -> str:
   return '\n'.join([inst.to_qcis() for inst in ir])

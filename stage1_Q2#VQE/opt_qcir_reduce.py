@@ -139,8 +139,10 @@ def simplify_ir(ir:IR, n_qubit:int, handle_vqc:bool=False) -> IR:
 
 
 #TODO:
-def IR_simplify(ir:IR, n_qubits:int=None, handle_vqc:bool=False, log:bool=False) -> IR:
-  n_qubits = n_qubits or ir_info(ir).n_qubits
+def ir_simplify(ir:IR, n_qubits:int=None, handle_vqc:bool=False, log:bool=False) -> IR:
+  if not n_qubits:
+    raise ValueError(n_qubits)
+  n_qubits = n_qubits
   len_ir = len(ir)
   if log: print('>> qtape length before:', len_ir)
   ir_s = ir
@@ -176,8 +178,7 @@ def qcis_simplify_vqc(qcis:str) -> str:
   def handle_qc_seg():
     if len(qc_seg) >= 2:
       ir_seg = qcis_to_ir('\n'.join(qc_seg))
-      ir_seg_simplified = IR_simplify(ir_seg, n_qubits)
-      # 将简化后的 IR 转换回 qcis
+      ir_seg_simplified = ir_simplify(ir_seg, n_qubits)
       qc_seg_new = ir_to_qcis(ir_seg_simplified).split('\n')
       # qc_seg_new = qcis_simplify('\n'.join(qc_seg), n_qubits).split('\n')
     else:
@@ -217,15 +218,14 @@ if __name__ == '__main__':
     qcis = load_qcis_example(args.I)
     in_fp = DATA_PATH / f'example_{args.I}.txt'
   ir = qcis_to_ir(qcis)
-  info = ir_info(ir)
+  info = qcis_info(qcis)
 
   if args.render:
     qcis = render_qcis(qcis, {k: 1 for k in info.param_names})
 
   
-  ir_opt = IR_simplify(ir)
-  info_opt = ir_info(ir_opt)
-  r = (info.n_depth - info_opt.n_depth) / info.n_depth
+  ir_opt = ir_simplify(ir, info.n_qubits)
+  r = (info.n_depth - ir_depth(ir_opt)) / info.n_depth
   print(f'>> n_depth: {info.n_depth} -> {info_opt.n_depth} ({r:.3%}↓)')
 
   if args.save:

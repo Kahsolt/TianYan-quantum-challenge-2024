@@ -77,7 +77,6 @@ if __name__ == '__main__':
     in_fp = DATA_PATH / f'example_{args.I}.txt'
     
   IR = qcis_to_ir(qcis)
-  print(f"n_gates: {qcis_info(qcis).n_gates}, ir:{ir_info(IR).n_gates}")
   # print(f"ir depth:{ir_depth(IR)}")
   # print(f"qcis depth:{qcis_depth(qcis)}")
   

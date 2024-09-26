@@ -6,7 +6,7 @@
 
 from time import time
 from collections import defaultdict
-from typing import List, Tuple, NamedTuple, Set, Dict, Union
+from typing import List, Tuple, Set, Dict, Union
 
 Nodes = List[int]
 Edges = List[Tuple[int, int]]
@@ -30,39 +30,38 @@ class Graph:
       self.adj[u].add(v)
       self.adj[v].add(u)
 
+    self.nodes_cover_degree = accumulated_groups(self.degree)
+
   def __getitem__(self, i:int):
     return self.adj[i]
 
-class Info(NamedTuple):
-  G1: Graph
-  G2: Graph
-  G1_nodes_cover_degree: Groups
-  G2_nodes_cover_degree: Groups
-
-class State(NamedTuple):
-  mapping: Dict[int, int]           # subgraph (u) -> graph (v)
-  reverse_mapping: Dict[int, int]   # graph (v) -> subgraph (u)
-  T1: Set[int]          # Ti contains uncovered neighbors of covered nodes from Gi, i.e. nodes that are not in the mapping, but are neighbors of nodes that are (the frontiers)
-  T2: Set[int]
+# info
+G1: Graph
+G2: Graph
+# state
+mapping:     Mapping = {}       # subgraph (u) -> graph (v)
+mapping_rev: Mapping = {}       # graph (v) -> subgraph (u)
+T1:          Set[int] = set()   # Ti contains uncovered neighbors of covered nodes from Gi, i.e. nodes that are not in the mapping, but are neighbors of nodes that are (the frontiers)
+T2:          Set[int] = set()
 
 def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float=None):
   # 初始化图和状态信息 (注意图的编号顺序与论文相反!!)
+  global G1, G2, mapping, mapping_rev, T1, T2
   G1, G2 = subgraph, graph
-  graph_params, state_params = _initialize_parameters(G1, G2)
+  mapping.clear()
+  mapping_rev.clear()
+  T1.clear()
+  T2.clear()
 
   # 剪枝检查: 大图覆盖子图度数计数
-  if not set(graph_params.G1_nodes_cover_degree).issubset(graph_params.G2_nodes_cover_degree): return
-
-  # just make short
-  mapping = state_params.mapping    
-  reverse_mapping = state_params.reverse_mapping
+  if not set(G1.nodes_cover_degree).issubset(G2.nodes_cover_degree): return
 
   # 确定最优的子图顶点匹配顺序
-  node_order = _matching_order(graph_params)
+  node_order = _matching_order()
 
   # 初始化DFS栈
   stack: List[int, Nodes] = []
-  candidates = iter(_find_candidates(node_order[0], graph_params, state_params))
+  candidates = iter(_find_candidates(node_order[0]))
   stack.append((node_order[0], candidates))
   matching_node = 1
   # 开始DFS!!
@@ -85,14 +84,14 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
         popped_node1, _ = stack[-1]
         popped_node2 = mapping[popped_node1]
         mapping.pop(popped_node1)
-        reverse_mapping.pop(popped_node2)
-        _restore_Tinout(popped_node1, popped_node2, graph_params, state_params)
+        mapping_rev.pop(popped_node2)
+        _restore_Tinout(popped_node1, popped_node2)
       continue
 
     # 匹配成功
-    if not _cut_PT(current_node, candidate, graph_params, state_params):
+    if not _cut_PT(current_node, candidate):
       # 找到一个解
-      if len(mapping) == G1.n - 1:
+      if matching_node == G1.n:
         cp_mapping = mapping.copy()
         cp_mapping[current_node] = candidate
         n_found += 1
@@ -101,10 +100,10 @@ def vf2pp_find_isomorphism(graph:Graph, subgraph:Graph, nlim:int=None, ttl:float
 
       # Feasibility rules pass, so extend the mapping and update the parameters
       mapping[current_node] = candidate
-      reverse_mapping[candidate] = current_node
-      _update_Tinout(current_node, candidate, graph_params, state_params)
+      mapping_rev[candidate] = current_node
+      _update_Tinout(current_node, candidate)
       # Append the next node and its candidates to the stack
-      candidates = iter(_find_candidates(node_order[matching_node], graph_params, state_params))
+      candidates = iter(_find_candidates(node_order[matching_node]))
       stack.append((node_order[matching_node], candidates))
       matching_node += 1
 
@@ -134,24 +133,7 @@ def bfs_layers(G:Graph, source:int):
           next_layer.append(child)
     current_layer = next_layer
 
-def _initialize_parameters(G1:Graph, G2:Graph):
-  info = Info(
-    G1,
-    G2,
-    accumulated_groups(G1.degree),
-    accumulated_groups(G2.degree),
-  )
-  state = State(
-    {},
-    {},
-    set(),
-    set(),
-  )
-  return info, state
-
-def _matching_order(info:Info):
-  G1, _, _, _ = info
-
+def _matching_order():
   # 子图未排序节点 & 各节点已征用度数 (拟连通度)    # TODO: 改为百分比(?)
   V1_unordered = set(range(G1.n))
   used_degrees = {node: 0 for node in V1_unordered}
@@ -182,20 +164,17 @@ def _matching_order(info:Info):
 
   return node_order
 
-def _find_candidates(u:int, info:Info, state:State):
-  G1, G2, _, G2_nodes_cover_degree = info
-  mapping, reverse_mapping, _, _ = state
-
+def _find_candidates(u:int):
   # 节点 u 的一些近邻已在映射中？
   covered_neighbors = [nbr for nbr in G1[u] if nbr in mapping]
   # 覆盖子图节点 u 度数的大图节点 v
-  valid_degree_nodes = G2_nodes_cover_degree[G1.degree[u]]
+  valid_degree_nodes = G2.nodes_cover_degree[G1.degree[u]]
 
   # 初始情况，从 G2 全图选匹配点
   if not covered_neighbors:
     candidates = set(range(G2.n))                       # 全部大图节点 v
     candidates.intersection_update(valid_degree_nodes)  # 节点 v 需覆盖节点 u 的度
-    candidates.difference_update(reverse_mapping)       # 节点 v 未被映射
+    candidates.difference_update(mapping_rev)           # 节点 v 未被映射
     return candidates
 
   # 后续情况，在 G2 已映射支撑集的近邻中选匹配点
@@ -203,25 +182,19 @@ def _find_candidates(u:int, info:Info, state:State):
   common_nodes = set(G2[mapping[nbr]])
   for nbr in covered_neighbors[1:]:
     common_nodes.intersection_update(G2[mapping[nbr]])  # 所有已映射支撑集的近邻节点 v
-  common_nodes.difference_update(reverse_mapping)       # 节点 v 未被映射
+  common_nodes.difference_update(mapping_rev)           # 节点 v 未被映射
   common_nodes.intersection_update(valid_degree_nodes)  # 节点 v 需覆盖节点 u 的度
   return common_nodes
 
-def _cut_PT(u:int, v:int, info:Info, state:State):
-  G1, G2, _, _ = info
-  _, _, T1, T2 = state
-
+def _cut_PT(u:int, v:int):
   # 小图节点 u 的邻居数量必须被所配大图节点 v 的邻居数量覆盖
   if len(T1.intersection(G1[u])) > len(T2.intersection(G2[v])):
     return True
   return False
 
-def _update_Tinout(new_node1:int, new_node2:int, info:Info, state:State):
-  G1, G2, _, _ = info
-  mapping, reverse_mapping, T1, T2 = state
-
+def _update_Tinout(new_node1:int, new_node2:int):
   uncovered_successors_G1 = {succ for succ in G1[new_node1] if succ not in mapping}
-  uncovered_successors_G2 = {succ for succ in G2[new_node2] if succ not in reverse_mapping}
+  uncovered_successors_G2 = {succ for succ in G2[new_node2] if succ not in mapping_rev}
 
   # Add the uncovered neighbors of node1 and node2 in T1 and T2 respectively
   T1.update(uncovered_successors_G1)
@@ -229,11 +202,8 @@ def _update_Tinout(new_node1:int, new_node2:int, info:Info, state:State):
   T1.discard(new_node1)
   T2.discard(new_node2)
 
-def _restore_Tinout(popped_node1:int, popped_node2:int, info:Info, state:State):
+def _restore_Tinout(popped_node1:int, popped_node2:int):
   # If the node we want to remove from the mapping, has at least one covered neighbor, add it to T1.
-  G1, G2, _, _ = info
-  mapping, reverse_mapping, T1, T2 = state
-
   for neighbor in G1[popped_node1]:
     if neighbor in mapping:
       # if a neighbor of the excluded node1 is in the mapping, keep node1 in T1
@@ -245,10 +215,10 @@ def _restore_Tinout(popped_node1:int, popped_node2:int, info:Info, state:State):
       T1.discard(neighbor)
 
   for neighbor in G2[popped_node2]:
-    if neighbor in reverse_mapping:
+    if neighbor in mapping_rev:
       T2.add(popped_node2)
     else:
-      if any(nbr in reverse_mapping for nbr in G2[neighbor]):
+      if any(nbr in mapping_rev for nbr in G2[neighbor]):
         continue
       T2.discard(neighbor)
 
@@ -335,6 +305,8 @@ if __name__ == '__main__':
     # [30s benchmark for nq=33]
     # - found 403478 mappings; best_fid: 0.041003316278704294
     # - found 531236 mappings; best_fid: 0.04100331627870427
+    # - found 557902 mappings; best_fid: 0.04100331627870427
+    # - found 578847 mappings; best_fid: 0.04100331627870427
     ts_start = time()
     qcis_mapped = run_vf2pp(qcis, nlim=None, tlim=30.0)
     ts_end = time()

@@ -20,9 +20,9 @@ from parse_qcir import _cvt_H_CZ_H_to_CNOT
 from utils import *
 
 
-def qcis_to_zx(qcis:str, nq:int) -> Circuit:
+def ir_to_zx(ir:IR, nq:int) -> Circuit:
   c = Circuit(nq)
-  for inst in qcis_to_ir(qcis):
+  for inst in ir:
     if inst.gate in ['CNOT', 'CZ']:
       c.add_gate(getattr(G, inst.gate)(inst.control_qubit, inst.target_qubit))
     elif inst.gate in ['RX', 'RY', 'RZ']:
@@ -43,7 +43,7 @@ def qcis_to_zx(qcis:str, nq:int) -> Circuit:
   return c
 
 
-def zx_to_qcis(c:Circuit) -> str:
+def zx_to_ir(c:Circuit) -> str:
   ir: IR = []
   for g in c:
     if   g.name in ['CNOT', 'CZ']:                 ir.append(Inst(g.name, g.target, control_qubit=g.control))
@@ -58,21 +58,16 @@ def zx_to_qcis(c:Circuit) -> str:
       ])
     else:
       raise ValueError(g)
-  return ir_to_qcis(ir)
-
-#TODO:
-def IR_simplify(ir:IR, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> IR:
   return ir
 
-# https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
-def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> str:
+#TODO:
+def ir_simplify(ir:IR, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> IR:
   if H_CZ_H_to_CNOT:
     qcis = '\n'.join(_cvt_H_CZ_H_to_CNOT(qcis.split('\n')))
-
+  ir_new = []
   if method == 'opt':
     # RX(θ) = H*RZ(θ)*H, `zx.full_optimize` only support {ZPhase, HAD, CNOT and CZ}
     ir = qcis_to_ir(qcis)
-    ir_new = []
     for inst in ir:
       if inst.gate == 'RX':
         ir_new.extend([
@@ -94,9 +89,9 @@ def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to
         ])
       else:
         ir_new.append(inst)
-    qcis = ir_to_qcis(ir_new)
-
-  c = qcis_to_zx(qcis, nq)
+  else:
+    ir_new = ir
+  c = ir_to_zx(ir_new, nq)
   g: GraphS = c.to_graph()
 
   if method == 'full':        # zx-based
@@ -109,8 +104,13 @@ def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to
     c_opt = zx.full_optimize(c, quiet=not log)
   assert c.verify_equality(c_opt), breakpoint()
 
-  qcis_opt = zx_to_qcis(c_opt)
-  return qcis_opt
+  ir_opt = zx_to_ir(c_opt)
+  return ir_opt
+
+# https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
+def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> str:
+  ir = qcis_to_ir(qcis)
+  return ir_to_qcis(ir_simplify(ir=ir, nq=nq, method=method, log=log, H_CZ_H_to_CNOT=H_CZ_H_to_CNOT))
 
 
 def qcis_simplify_vqc(qcis:str, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=False) -> str:
@@ -121,13 +121,15 @@ def qcis_simplify_vqc(qcis:str, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=F
   def handle_qc_seg():
     found_short = False
     if len(qc_seg) >= 2:
-      qcis_seg = '\n'.join(qc_seg)
-      qcis_seg_new = qcis_simplify(qcis_seg, nq, method, H_CZ_H_to_CNOT=H_CZ_H_to_CNOT)
-      if qcis_info(qcis_seg_new).n_depth <= qcis_info(qcis_seg).n_depth:
-        found_short = True
-        qc_seg_new = qcis_seg_new.split('\n')
+        qcis_seg = '\n'.join(qc_seg)
+        ir_seg = qcis_to_ir(qcis_seg)
+        ir_seg_new = ir_simplify(ir=ir_seg, nq=nq, method=method, H_CZ_H_to_CNOT=H_CZ_H_to_CNOT)
+        qcis_seg_new = ir_to_qcis(ir_seg_new)
+        if qcis_info(qcis_seg_new).n_depth <= qcis_info(qcis_seg).n_depth:
+          found_short = True
+          qc_seg_new = qcis_seg_new.split('\n')
     if not found_short:
-      qc_seg_new = deepcopy(qc_seg)
+        qc_seg_new = deepcopy(qc_seg)
     inst_list_new.extend(qc_seg_new)
     qc_seg.clear()
 

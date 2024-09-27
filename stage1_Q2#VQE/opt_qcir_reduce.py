@@ -2,7 +2,7 @@
 # Author: Armit
 # Create Time: 2024/09/13
 
-# 手写 cancel_inverses + merge_rotations 实现，不需要vqc分段(?)并且快很多
+# 手写 cancel_inverses + merge_rotations 实现，不需要vqc分段并且快很多
 
 from argparse import ArgumentParser
 
@@ -24,10 +24,10 @@ class LInst:
 
 def cvt_rots(g:Inst) -> Inst:
   if g.gate in ['X', 'Y', 'Z']: return Inst(f'R{g.gate}', g.target_qubit, PI)
-  if g.gate == 'T' : return Inst('RZ', g.target_qubit, +PI_2)
-  if g.gate == 'TD': return Inst('RZ', g.target_qubit, -PI_2)
-  if g.gate == 'S' : return Inst('RZ', g.target_qubit, +PI_4)
-  if g.gate == 'SD': return Inst('RZ', g.target_qubit, -PI_4)
+  if g.gate == 'T' :  return Inst('RZ', g.target_qubit, +PI_2)
+  if g.gate == 'TD':  return Inst('RZ', g.target_qubit, -PI_2)
+  if g.gate == 'S' :  return Inst('RZ', g.target_qubit, +PI_4)
+  if g.gate == 'SD':  return Inst('RZ', g.target_qubit, -PI_4)
   if g.gate == 'X2P': return Inst('RX', g.target_qubit, +PI/2)
   if g.gate == 'X2M': return Inst('RX', g.target_qubit, -PI/2)
   if g.gate == 'Y2P': return Inst('RY', g.target_qubit, +PI/2)
@@ -35,8 +35,9 @@ def cvt_rots(g:Inst) -> Inst:
   return g
 
 def is_dagger(A:Inst, B:Inst, handle_vqc:bool=False):
-  A = cvt_rots(A) ; is_p_A = isinstance(A.param, str)
-  B = cvt_rots(B) ; is_p_B = isinstance(B.param, str)
+  A = cvt_rots(A) ; is_p_A = isinstance(A.param, Expr)
+  B = cvt_rots(B) ; is_p_B = isinstance(B.param, Expr)
+  is_vqc = is_p_A or is_p_B
   name_match = A.gate == B.gate
   name_set = {A.gate, B.gate}
   target_match = A.target_qubit == B.target_qubit
@@ -50,9 +51,7 @@ def is_dagger(A:Inst, B:Inst, handle_vqc:bool=False):
   elif A.gate in ('S', 'SD'):
     return name_set == {'S', 'SD'} and target_match
   elif A.gate in ['RX', 'RY', 'RZ'] and name_match:
-    if is_p_A or is_p_B:
-      if not handle_vqc: return False
-      breakpoint()
+    if is_vqc: return     # FIXME: 暂不考虑含参门的对消
     param = (A.param + B.param) % PI2
     #if param - PI > 1e-5: param = PI2 - param
     return target_match and abs(param) < 1e-5
@@ -60,12 +59,12 @@ def is_dagger(A:Inst, B:Inst, handle_vqc:bool=False):
 def merge_rot_if_possible(A:Inst, B:Inst, handle_vqc:bool=False) -> Inst:
   A = cvt_rots(A) ; is_p_A = isinstance(A.param, str)
   B = cvt_rots(B) ; is_p_B = isinstance(B.param, str)
+  is_vqc = is_p_A or is_p_B
   if A.gate != B.gate: return
   if A.target_qubit != B.target_qubit: return
-  if is_p_A or is_p_B:
-    if not handle_vqc: return
-    breakpoint()
-  param = (A.param + B.param) % PI2
+  if is_vqc and not handle_vqc: return
+  param = A.param + B.param
+  if not is_vqc: param %= PI2
   #if param - PI > 1e-5: param = PI2 - param
   return Inst(A.gate, A.target_qubit, param)
 
@@ -73,6 +72,8 @@ def simplify_ir(ir:IR, n_qubit:int, handle_vqc:bool=False) -> IR:
   # gates -> wires
   wires: List[List[LInst]] = [[] for _ in range(n_qubit)]
   depths = [0] * n_qubit
+  n_elim = 0
+  n_fuse = 0
   for inst in ir:
     # flag
     is_elim = False
@@ -86,7 +87,9 @@ def simplify_ir(ir:IR, n_qubit:int, handle_vqc:bool=False) -> IR:
     if is_Q2:
       if last_inst_t is last_inst_c and last_inst_t is not None:    # objective eqivalent!
         if is_dagger(last_inst_t.inst, inst, handle_vqc):   # elim
+          #print(f'>> Elim: {last_inst_t.inst, inst}')
           is_elim = True
+          n_elim += 1
           wire_t.remove(last_inst_t)
           wire_c.remove(last_inst_c)
           depths[inst.target_qubit]  -= 1
@@ -100,13 +103,17 @@ def simplify_ir(ir:IR, n_qubit:int, handle_vqc:bool=False) -> IR:
     else:   # Q1
       if last_inst_t is not None:
         if is_dagger(last_inst_t.inst, inst, handle_vqc):   # elim
+          #print(f'>> Elim: {last_inst_t.inst, inst}')
           is_elim = True
+          n_elim += 1
           wire_t.remove(last_inst_t)
           depths[inst.target_qubit] -= 1
         else:
           inst_fused = merge_rot_if_possible(last_inst_t.inst, inst, handle_vqc)
           if inst_fused is not None:            # fuse
+            #print(f'>> Fuse: {last_inst_t.inst, inst} => {inst_fused}')
             is_fuse = True
+            n_fuse += 1
             wire_t.remove(last_inst_t)
             wire_t.append(LInst(depths[inst.target_qubit], inst_fused))
       if not is_elim and not is_fuse:           # append
@@ -133,6 +140,7 @@ def simplify_ir(ir:IR, n_qubit:int, handle_vqc:bool=False) -> IR:
       ir_new.append(inst)
     d += 1
 
+  #assert len(ir_new) + n_elim*2 + n_fuse == len(ir)
   return ir_new
 
 ''' ↑↑↑ ref # https://github.com/Kahsolt/Quantum-Circuit-Elimination/blob/master/server/app/circuit.py '''
@@ -150,35 +158,7 @@ def ir_simplify(ir:IR, nq:int, handle_vqc:bool=False, log:bool=False) -> IR:
     print('>> qtape length after:', len_ir_s, f'({r:.3%}↓)')
   return ir_s
 
-qcis_simplify = lambda qcis, nq, handle_vqc=False: ir_to_qcis(ir_simplify(qcis_to_ir(qcis, nq, handle_vqc)))
-
-def qcis_simplify_vqc(qcis:str, nq:int) -> str:
-  inst_list = qcis.split('\n')
-  inst_list_new = []
-  qc_seg = []
-
-  def handle_qc_seg():
-    if len(qc_seg) >= 2:
-      ir_seg = qcis_to_ir('\n'.join(qc_seg))
-      ir_seg_simplified = ir_simplify(ir_seg, nq)
-      qc_seg_new = ir_to_qcis(ir_seg_simplified).split('\n')
-    else:
-      qc_seg_new = deepcopy(qc_seg)
-    inst_list_new.extend(qc_seg_new)
-    qc_seg.clear()
-
-  for inst in inst_list:
-    if is_inst_Q2(inst):
-      qc_seg.append(inst)
-    elif is_inst_Q1P(inst):
-      handle_qc_seg()
-      inst_list_new.append(inst)
-    elif is_inst_Q1(inst):
-      qc_seg.append(inst)
-    else:
-      raise ValueError(inst)
-  handle_qc_seg()
-  return '\n'.join(inst_list_new)
+qcis_simplify = lambda qcis, nq, handle_vqc=False: ir_to_qcis(ir_simplify(qcis_to_ir(qcis), nq, handle_vqc))
 
 
 if __name__ == '__main__':
@@ -202,11 +182,8 @@ if __name__ == '__main__':
 
   if args.render:
     qcis = render_qcis(qcis, {k: 1 for k in info.param_names})
-    simplify_func = qcis_simplify
-  else:
-    simplify_func = qcis_simplify_vqc
 
-  qcis_opt = simplify_func(qcis, info.n_qubits)
+  qcis_opt = qcis_simplify(qcis, info.n_qubits, handle_vqc=False)
   depth_opt = qcis_depth(qcis_opt)
   r = (info.n_depth - depth_opt) / info.n_depth
   print(f'>> n_depth: {info.n_depth} -> {depth_opt} ({r:.3%}↓)')

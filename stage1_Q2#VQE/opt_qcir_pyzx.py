@@ -3,6 +3,7 @@
 # Create Time: 2024/07/18
 
 # 借助 pyzx 库进行含参线路化简 (兄弟这个非常猛！！)
+# NOTE: pyzx 不支持符号计算含参化简，只能曲线救国 😈
 # 1. 分割线路为 含参段vqc 和 无参段qc
 # 2. 对 qc 段进行 ZX 化简
 # 3. 重新粘接 vqc 和 qc 段
@@ -38,10 +39,7 @@ def ir_to_zx(ir:IR, nq:int) -> Circuit:
     if inst.gate in ['CNOT', 'CZ']:
       c.add_gate(getattr(G, inst.gate)(inst.control_qubit, inst.target_qubit))
     elif inst.gate in ['RX', 'RY', 'RZ']:
-      if   isclose(inst.param,  pi/2): p = Fraction( 1, 2)
-      elif isclose(inst.param, -pi/2): p = Fraction(-1, 2)
-      else: raise ValueError()
-      c.add_gate(getattr(G, inst.gate[-1] + 'Phase')(inst.target_qubit, p))
+      c.add_gate(getattr(G, inst.gate[-1] + 'Phase')(inst.target_qubit, Fraction.from_float(inst.param / pi)))
     elif inst.gate == 'H':
       c.add_gate(G.HAD(inst.target_qubit))
     elif inst.gate in ['X', 'Y', 'Z', 'S', 'T']:
@@ -120,36 +118,35 @@ def ir_simplify(ir:IR, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=False, log
 
 qcis_simplify = lambda qcis, nq, method='full', H_CZ_H_to_CNOT=False: ir_to_qcis(ir_simplify(qcis_to_ir(qcis), nq, method, H_CZ_H_to_CNOT))
 
-def qcis_simplify_vqc(qcis:str, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=False) -> str:
-  inst_list = qcis.split('\n')
-  inst_list_new = []
-  qc_seg = []
+def ir_simplify_vqc(ir:IR, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=False, log:bool=False) -> IR:
+  ir_new: IR = []
+  ir_seg: IR = []
 
-  def handle_qc_seg():
+  def handle_ir_seg():
     found_short = False
-    if len(qc_seg) >= 2:
-        ir_seg = qcis_to_ir('\n'.join(qc_seg))
-        ir_seg_new = ir_simplify(ir_seg, nq, method, H_CZ_H_to_CNOT)
-        if ir_depth(ir_seg_new) <= ir_depth(ir_seg):
-          found_short = True
-          qc_seg_new = ir_to_qcis(ir_seg_new).split('\n')
+    if len(ir_seg) >= 2:
+      ir_seg_new = ir_simplify(ir_seg, nq, method, H_CZ_H_to_CNOT, log)
+      if ir_depth(ir_seg_new) <= ir_depth(ir_seg):
+        found_short = True
     if not found_short:
-        qc_seg_new = deepcopy(qc_seg)
-    inst_list_new.extend(qc_seg_new)
-    qc_seg.clear()
+      ir_seg_new = deepcopy(ir_seg)
+    ir_new.extend(ir_seg_new)
+    ir_seg.clear()
 
-  for inst in inst_list:
-    if is_inst_Q2(inst):
-      qc_seg.append(inst)
-    elif is_inst_Q1P(inst):
-      handle_qc_seg()
-      inst_list_new.append(inst)
-    elif is_inst_Q1(inst):
-      qc_seg.append(inst)
+  for inst in ir:
+    if inst.is_Q2:
+      ir_seg.append(inst)
+    elif inst.is_Q1P:   # pyxz cannot handle arbitary rotation :(
+      handle_ir_seg()
+      ir_new.append(inst)
+    elif inst.is_Q1:
+      ir_seg.append(inst)
     else:
       raise ValueError(inst)
-  handle_qc_seg()
-  return '\n'.join(inst_list_new)
+  handle_ir_seg()
+  return ir_new
+
+qcis_simplify_vqc = lambda qcis, nq, method='full', H_CZ_H_to_CNOT=False: ir_to_qcis(ir_simplify_vqc(qcis_to_ir(qcis), nq, method, H_CZ_H_to_CNOT))
 
 
 if __name__ == '__main__':
@@ -178,7 +175,7 @@ if __name__ == '__main__':
   else:
     simplify_func = qcis_simplify_vqc
 
-  qcis_opt = simplify_func(qcis, info.n_qubits, args.method)
+  qcis_opt = simplify_func(qcis, info.n_qubits, method='full')
   depth_opt = qcis_depth(qcis_opt)
   r = (info.n_depth - depth_opt) / info.n_depth
   print(f'>> n_depth: {info.n_depth} -> {depth_opt} ({r:.3%}↓)')

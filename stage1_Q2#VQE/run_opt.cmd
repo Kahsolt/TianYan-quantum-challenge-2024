@@ -10,7 +10,8 @@ GOTO fuse
 ECHO [Run reduce]
 FOR /L %%I IN (0,1,9) DO (
   ECHO sample-%%I
-  python opt_qcir_reduce.py -I %%I
+  python opt_qcir_reduce.py -I %%I --save
+  python verify_solut.py -I %%I
 )
 ECHO.
 
@@ -19,7 +20,8 @@ ECHO.
 ECHO [Run pyzx]
 FOR /L %%I IN (0,1,9) DO (
   ECHO sample-%%I
-  python opt_qcir_pyzx.py -I %%I
+  python opt_qcir_pyzx.py -I %%I --save
+  python verify_solut.py -I %%I
 )
 ECHO.
 
@@ -29,6 +31,7 @@ ECHO [Run fuse]
 FOR /L %%I IN (0,1,9) DO (
   ECHO sample-%%I
   python opt_vqcir.py -I %%I
+  python verify_solut.py -I %%I
 )
 ECHO.
 

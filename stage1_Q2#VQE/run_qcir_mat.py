@@ -74,7 +74,8 @@ def qtape_to_qcis(qtape:QuantumTape) -> str:
 def qcis_to_pennylane(qcis:str) -> Callable[[PR], StateMP]:
   info = qcis_info(qcis)
   dev = qml.device('default.qubit', wires=info.n_qubits)
-  inst_list = _cvt_H_CZ_H_to_CNOT(qcis.split('\n'))    # CNOT is more beautiful ;)
+  #inst_list = _cvt_H_CZ_H_to_CNOT(qcis.split('\n'))    # CNOT is more beautiful ;)
+  inst_list = qcis.split('\n')
 
   @qml.qnode(dev)
   def circuit(pr:PR=None):

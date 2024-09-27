@@ -11,8 +11,8 @@ from functools import lru_cache
 from typing import *
 
 import numpy as np
-from numpy import ndarray
-from numpy import pi
+from numpy import pi, ndarray
+from sympy import Symbol, Expr, Mod, parse_expr
 
 BASE_PATH = Path(__file__).parent
 DATA_PATH = BASE_PATH / 'data'
@@ -149,7 +149,6 @@ def parse_inst_param_name(arg:str) -> str:
   except:
     return arg
 
-
 @dataclass
 class CircuitInfo:
   n_qubits: int
@@ -159,7 +158,6 @@ class CircuitInfo:
   qubit_ids: List[int]
   gate_types: List[str]
   param_names: List[str]
-
 
 def get_circuit_depth_from_edge_list(edges:List[Tuple[int, int]]) -> int:
   if not edges: return 0
@@ -229,7 +227,7 @@ def qcis_depth(qcis:str) -> int:
 class Inst:
   gate: str
   target_qubit: int
-  param: Union[str, float, None] = None
+  param: Union[float, Expr, None] = None
   control_qubit: Optional[int] = None
 
   def __eq__(self, other:object) -> bool:
@@ -239,6 +237,11 @@ class Inst:
     if self.param != other.param: return False
     if self.control_qubit != other.control_qubit: return False
     return True
+  def __lt__(self, other:object) -> bool:
+    if not isinstance(other, Inst): raise NotImplemented
+    if self.target_qubit  < other.target_qubit:  return True
+    if self.gate          < other.gate:          return True
+    return False
 
   @property
   def is_Q2(self):
@@ -257,7 +260,7 @@ class Inst:
     if self.is_Q2:
       return f'{self.gate} Q{self.control_qubit} Q{self.target_qubit}'
     if self.is_Q1P:
-      return f'{self.gate} Q{self.target_qubit} {self.param}'
+      return f'{self.gate} Q{self.target_qubit} {export_inst_param(self.param)}'
     if self.is_Q1:
       return f'{self.gate} Q{self.target_qubit}'
     raise NotImplementedError(self)
@@ -266,14 +269,13 @@ class Inst:
     if self.is_Q2:
       return f'{self.gate}(q[{self.control_qubit}], q[{self.target_qubit}]);'
     if self.is_Q1P:
-      return f'{self.gate}({self.param}, q[{self.target_qubit}]);'
+      return f'{self.gate}({export_inst_param(self.param)}, q[{self.target_qubit}]);'
     if self.is_Q1:
       return f'{self.gate}(q[{self.target_qubit}]);'
     raise NotImplementedError(self)
 
 IR = List[Inst]
 PR = Dict[str, float]
-
 
 def ir_depth(ir:IR) -> int:
   edges: List[Tuple[int, int]] = []
@@ -305,7 +307,7 @@ def qcis_to_ir(qcis:str) -> IR:
       ir.append(Inst(g, t, control_qubit=c))
     elif is_inst_Q1P(inst):
       g, q, p = parse_inst_Q1P(inst)
-      ir.append(Inst(g, q, param=p))
+      ir.append(Inst(g, q, param=import_inst_param(p)))
     elif is_inst_Q1(inst):
       g, q = parse_inst_Q1(inst)
       ir.append(Inst(g, q))
@@ -339,6 +341,21 @@ def qcis_to_isq(qcis:str) -> str:
   for q in range(info.n_qubits):
     inst_list_new.append(f'M(q[{q}]);')
   return '\n'.join(inst_list_new)
+
+def import_inst_param(x:str) -> Union[float, Expr]:
+  try:
+    return float(x)
+  except:
+    pn = parse_inst_param_name(x)
+    return parse_expr(x, {pn: Symbol(pn)})
+
+def export_inst_param(p:Union[float, Expr]) -> str:
+  if isinstance(p, Expr):
+    if isinstance(p, Mod):
+      x, y = p.args
+      assert isclose(float(y), 2*pi)
+      p = x   #.simplify()
+  return str(p)
 
 
 ''' Render '''

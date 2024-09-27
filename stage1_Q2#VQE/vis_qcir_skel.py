@@ -25,8 +25,5 @@ if __name__ == '__main__':
       ir_new.append(inst)
   qcis = ir_to_qcis(ir_new)
 
-  info = qcis_info(qcis)
-  print('n_depth:', info.n_depth)
-  qnode = qcis_to_pennylane(qcis)
-  qcir = qml.draw(qnode, max_length=120)()
-  print(qcir)
+  print('n_depth:', qcis_depth(qcis))
+  show_qcis_via_pennylane(qcis)

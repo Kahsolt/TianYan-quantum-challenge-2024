@@ -190,8 +190,5 @@ if __name__ == '__main__':
     save_qcis(qcis_opt, out_fp)
 
   if args.show:
-    from run_qcir_mat import qcis_to_pennylane, qml
-    qnode = qcis_to_pennylane(qcis_opt)
-    qcir_c_s = qml.draw(qnode, max_length=120)()
-    print('[Circuit-compiled]')
-    print(qcir_c_s)
+    from run_qcir_mat import show_qcis_via_pennylane
+    show_qcis_via_pennylane(qcis_opt)

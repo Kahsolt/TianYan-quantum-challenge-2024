@@ -7,10 +7,10 @@
 from scipy.io import loadmat
 
 try:
-  from opt_qcir_pennylane import *
+  from run_qcir_mat import *
   HAS_PENNYLANE = True
 except ImportError:
-  print('>> WARN: package "pennylane" not found, visualization will be disabled :(')
+  print('>> WARN: package "pennylane" not found, visualization & rewire will be disabled :(')
   HAS_PENNYLANE = False
 from utils import *
 
@@ -23,16 +23,12 @@ QUBIT_MAPPING = {
 }
 
 qcis = load_qcis(OUT_PATH / 'example_0.txt')
-
 info = qcis_info(qcis)
 pr = {k: 1 for k in info.param_names} 
 qcis = render_qcis(qcis, pr)
 
 if HAS_PENNYLANE:
-  qnode = qcis_to_pennylane(qcis)
-  qcir = qml.draw(qnode, max_length=120)()
-  print(qcir)
-  print()
+  show_qcis_via_pennylane(qcis)
 
   qtape = qcis_to_qtape(qcis)
   qtapes, func = qml.map_wires(qtape, QUBIT_MAPPING)

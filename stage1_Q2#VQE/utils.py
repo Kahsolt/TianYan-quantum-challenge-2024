@@ -267,6 +267,14 @@ IR = List[Inst]
 PR = Dict[str, float]
 
 
+def ir_depth(ir:IR) -> int:
+  edges: List[Tuple[int, int]] = []
+  for inst in ir:
+    if inst.is_Q2:
+      edges.append((inst.target_qubit, inst.control_qubit))
+  return get_circuit_depth_from_edge_list(edges)
+
+
 def ir_to_qcis(ir:IR) -> str:
   return '\n'.join([inst.to_qcis() for inst in ir])
 

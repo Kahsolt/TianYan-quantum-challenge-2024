@@ -75,7 +75,11 @@ if __name__ == '__main__':
   else:
     qcis = load_qcis_example(args.I)
     in_fp = DATA_PATH / f'example_{args.I}.txt'
-
+    
+  IR = qcis_to_ir(qcis)
+  # print(f"ir depth:{ir_depth(IR)}")
+  # print(f"qcis depth:{qcis_depth(qcis)}")
+  
   depth = qcis_depth(qcis)
   qcis_opt = run(args, qcis)
   depth_new = qcis_depth(qcis_opt)

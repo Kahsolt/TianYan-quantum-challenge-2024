@@ -138,30 +138,30 @@ def simplify_ir(ir:IR, n_qubit:int, handle_vqc:bool=False) -> IR:
 ''' ↑↑↑ ref # https://github.com/Kahsolt/Quantum-Circuit-Elimination/blob/master/server/app/circuit.py '''
 
 
-def qcis_simplify(qcis:str, n_qubits:int=None, handle_vqc:bool=False, log:bool=False) -> str:
-  n_qubits = n_qubits or qcis_info(qcis).n_qubits
-  ir = qcis_to_ir(qcis)
+def ir_simplify(ir:IR, nq:int, handle_vqc:bool=False, log:bool=False) -> IR:
   len_ir = len(ir)
   if log: print('>> qtape length before:', len_ir)
   ir_s = ir
   for _ in range(3):
-    ir_s = simplify_ir(ir_s, n_qubits, handle_vqc)
+    ir_s = simplify_ir(ir_s, nq, handle_vqc)
   if log:
     len_ir_s = len(ir_s)
     r = (len_ir - len_ir_s) / len_ir
     print('>> qtape length after:', len_ir_s, f'({r:.3%}↓)')
-  qcis = ir_to_qcis(ir_s)
-  return qcis
+  return ir_s
 
-def qcis_simplify_vqc(qcis:str) -> str:
-  n_qubits = qcis_info(qcis).n_qubits
+qcis_simplify = lambda qcis, nq, handle_vqc=False: ir_to_qcis(ir_simplify(qcis_to_ir(qcis, nq, handle_vqc)))
+
+def qcis_simplify_vqc(qcis:str, nq:int) -> str:
   inst_list = qcis.split('\n')
   inst_list_new = []
   qc_seg = []
 
   def handle_qc_seg():
     if len(qc_seg) >= 2:
-      qc_seg_new = qcis_simplify('\n'.join(qc_seg), n_qubits).split('\n')
+      ir_seg = qcis_to_ir('\n'.join(qc_seg))
+      ir_seg_simplified = ir_simplify(ir_seg, nq)
+      qc_seg_new = ir_to_qcis(ir_seg_simplified).split('\n')
     else:
       qc_seg_new = deepcopy(qc_seg)
     inst_list_new.extend(qc_seg_new)
@@ -202,11 +202,14 @@ if __name__ == '__main__':
 
   if args.render:
     qcis = render_qcis(qcis, {k: 1 for k in info.param_names})
+    simplify_func = qcis_simplify
+  else:
+    simplify_func = qcis_simplify_vqc
 
-  qcis_opt = qcis_simplify(qcis)
-  info_opt = qcis_info(qcis_opt)
-  r = (info.n_depth - info_opt.n_depth) / info.n_depth
-  print(f'>> n_depth: {info.n_depth} -> {info_opt.n_depth} ({r:.3%}↓)')
+  qcis_opt = simplify_func(qcis, info.n_qubits)
+  depth_opt = qcis_depth(qcis_opt)
+  r = (info.n_depth - depth_opt) / info.n_depth
+  print(f'>> n_depth: {info.n_depth} -> {depth_opt} ({r:.3%}↓)')
 
   if args.save:
     OUT_PATH.mkdir(exist_ok=True, parents=True)

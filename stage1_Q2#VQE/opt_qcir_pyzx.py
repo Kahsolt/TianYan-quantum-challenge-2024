@@ -16,9 +16,21 @@ import pyzx.circuit.gates as G
 from pyzx.circuit import Circuit
 from pyzx.graph.graph_s import GraphS
 
-from parse_qcir import _cvt_H_CZ_H_to_CNOT
 from utils import *
 
+
+def _cvt_H_CZ_H_to_CNOT(ir:IR) -> IR:
+  ir_new: IR = []
+  p = 0
+  while p < len(ir):
+    if p + 2 < len(ir) and ir[p] == ir[p+2] and ir[p].gate == 'H' and ir[p+1].gate == 'CZ':
+      inst = ir[p+1]
+      ir_new.append(Inst('CNOT', inst.target_qubit, inst.param, inst.control_qubit))
+      p += 3
+    else:
+      ir_new.append(ir[p])
+      p += 1
+  return ir_new
 
 def ir_to_zx(ir:IR, nq:int) -> Circuit:
   c = Circuit(nq)
@@ -42,8 +54,7 @@ def ir_to_zx(ir:IR, nq:int) -> Circuit:
       else: raise ValueError(inst)
   return c
 
-
-def zx_to_ir(c:Circuit) -> str:
+def zx_to_ir(c:Circuit) -> IR:
   ir: IR = []
   for g in c:
     if   g.name in ['CNOT', 'CZ']:                 ir.append(Inst(g.name, g.target, control_qubit=g.control))
@@ -60,14 +71,13 @@ def zx_to_ir(c:Circuit) -> str:
       raise ValueError(g)
   return ir
 
-#TODO:
-def ir_simplify(ir:IR, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> IR:
+
+def ir_simplify(ir:IR, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=False, log:bool=False) -> IR:
   if H_CZ_H_to_CNOT:
-    qcis = '\n'.join(_cvt_H_CZ_H_to_CNOT(qcis.split('\n')))
-  ir_new = []
+    ir = _cvt_H_CZ_H_to_CNOT(ir)
   if method == 'opt':
+    ir_new = []
     # RX(θ) = H*RZ(θ)*H, `zx.full_optimize` only support {ZPhase, HAD, CNOT and CZ}
-    ir = qcis_to_ir(qcis)
     for inst in ir:
       if inst.gate == 'RX':
         ir_new.extend([
@@ -89,11 +99,12 @@ def ir_simplify(ir:IR, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT
         ])
       else:
         ir_new.append(inst)
-  else:
-    ir_new = ir
-  c = ir_to_zx(ir_new, nq)
+    ir = ir_new
+
+  c = ir_to_zx(ir, nq)
   g: GraphS = c.to_graph()
 
+  # https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
   if method == 'full':        # zx-based
     zx.full_reduce(g, quiet=not log)
     c_opt = zx.extract_circuit(g.copy())
@@ -107,11 +118,7 @@ def ir_simplify(ir:IR, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT
   ir_opt = zx_to_ir(c_opt)
   return ir_opt
 
-# https://pyzx.readthedocs.io/en/latest/simplify.html#optimizing-circuits-using-the-zx-calculus
-def qcis_simplify(qcis:str, nq:int, method:str='full', log:bool=False, H_CZ_H_to_CNOT:bool=False) -> str:
-  ir = qcis_to_ir(qcis)
-  return ir_to_qcis(ir_simplify(ir=ir, nq=nq, method=method, log=log, H_CZ_H_to_CNOT=H_CZ_H_to_CNOT))
-
+qcis_simplify = lambda qcis, nq, method='full', H_CZ_H_to_CNOT=False: ir_to_qcis(ir_simplify(qcis_to_ir(qcis), nq, method, H_CZ_H_to_CNOT))
 
 def qcis_simplify_vqc(qcis:str, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=False) -> str:
   inst_list = qcis.split('\n')
@@ -121,13 +128,11 @@ def qcis_simplify_vqc(qcis:str, nq:int, method:str='full', H_CZ_H_to_CNOT:bool=F
   def handle_qc_seg():
     found_short = False
     if len(qc_seg) >= 2:
-        qcis_seg = '\n'.join(qc_seg)
-        ir_seg = qcis_to_ir(qcis_seg)
-        ir_seg_new = ir_simplify(ir=ir_seg, nq=nq, method=method, H_CZ_H_to_CNOT=H_CZ_H_to_CNOT)
-        qcis_seg_new = ir_to_qcis(ir_seg_new)
-        if qcis_info(qcis_seg_new).n_depth <= qcis_info(qcis_seg).n_depth:
+        ir_seg = qcis_to_ir('\n'.join(qc_seg))
+        ir_seg_new = ir_simplify(ir_seg, nq, method, H_CZ_H_to_CNOT)
+        if ir_depth(ir_seg_new) <= ir_depth(ir_seg):
           found_short = True
-          qc_seg_new = qcis_seg_new.split('\n')
+          qc_seg_new = ir_to_qcis(ir_seg_new).split('\n')
     if not found_short:
         qc_seg_new = deepcopy(qc_seg)
     inst_list_new.extend(qc_seg_new)
@@ -174,9 +179,9 @@ if __name__ == '__main__':
     simplify_func = qcis_simplify_vqc
 
   qcis_opt = simplify_func(qcis, info.n_qubits, args.method)
-  info_opt = qcis_info(qcis_opt)
-  r = (info.n_depth - info_opt.n_depth) / info.n_depth
-  print(f'>> n_depth: {info.n_depth} -> {info_opt.n_depth} ({r:.3%}↓)')
+  depth_opt = qcis_depth(qcis_opt)
+  r = (info.n_depth - depth_opt) / info.n_depth
+  print(f'>> n_depth: {info.n_depth} -> {depth_opt} ({r:.3%}↓)')
 
   if args.save:
     OUT_PATH.mkdir(exist_ok=True, parents=True)
@@ -185,9 +190,7 @@ if __name__ == '__main__':
     save_qcis(qcis_opt, out_fp)
 
   if args.show:
-    from run_qcir_mat import qcis_to_pennylane
-    import pennylane as qml
-
+    from run_qcir_mat import qcis_to_pennylane, qml
     qnode = qcis_to_pennylane(qcis_opt)
     qcir_c_s = qml.draw(qnode, max_length=120)()
     print('[Circuit-compiled]')

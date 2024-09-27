@@ -7,7 +7,7 @@
 import random
 from argparse import ArgumentParser
 
-from opt_qcir_reduce import qcis_simplify_vqc as qcis_simplify_vqc_reduce, qcis_simplify as qcis_simplify_reduce
+from opt_qcir_reduce import qcis_simplify_vqc as qcis_simplify_vqc_reduce
 from opt_qcir_pyzx import qcis_simplify_vqc as qcis_simplify_vqc_pyzx
 from utils import *
 
@@ -15,7 +15,7 @@ from utils import *
 def run(args, qcis:str) -> str:
   # simplifiers
   simplifiers = [
-    lambda qcis, nq: qcis_simplify_vqc_reduce(qcis),
+    lambda qcis, nq: qcis_simplify_vqc_reduce(qcis, nq),
     lambda qcis, nq: qcis_simplify_vqc_pyzx(qcis, nq),
     lambda qcis, nq: qcis_simplify_vqc_pyzx(qcis, nq, H_CZ_H_to_CNOT=True),
   ]
@@ -57,7 +57,7 @@ def run(args, qcis:str) -> str:
     depth_rank_last = depth_rank
 
   best_qcis = popl[0][1]
-  return qcis_simplify_vqc_reduce(best_qcis)    # assure no adjacent inverses :)
+  return qcis_simplify_vqc_reduce(best_qcis, info.n_qubits)    # assure no adjacent inverses :)
 
 
 if __name__ == '__main__':
@@ -75,11 +75,7 @@ if __name__ == '__main__':
   else:
     qcis = load_qcis_example(args.I)
     in_fp = DATA_PATH / f'example_{args.I}.txt'
-    
-  IR = qcis_to_ir(qcis)
-  # print(f"ir depth:{ir_depth(IR)}")
-  # print(f"qcis depth:{qcis_depth(qcis)}")
-  
+
   depth = qcis_depth(qcis)
   qcis_opt = run(args, qcis)
   depth_new = qcis_depth(qcis_opt)

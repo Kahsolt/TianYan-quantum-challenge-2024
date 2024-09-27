@@ -232,6 +232,14 @@ class Inst:
   param: Union[str, float, None] = None
   control_qubit: Optional[int] = None
 
+  def __eq__(self, other:object) -> bool:
+    if not isinstance(other, Inst): raise NotImplemented
+    if self.gate != other.gate: return False
+    if self.target_qubit != other.target_qubit: return False
+    if self.param != other.param: return False
+    if self.control_qubit != other.control_qubit: return False
+    return True
+
   @property
   def is_Q2(self):
     return self.control_qubit is not None
@@ -273,7 +281,6 @@ def ir_depth(ir:IR) -> int:
     if inst.is_Q2:
       edges.append((inst.target_qubit, inst.control_qubit))
   return get_circuit_depth_from_edge_list(edges)
-
 
 def ir_to_qcis(ir:IR) -> str:
   return '\n'.join([inst.to_qcis() for inst in ir])

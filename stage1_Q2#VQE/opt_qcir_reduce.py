@@ -150,7 +150,7 @@ def ir_simplify(ir:IR, nq:int, handle_vqc:bool=False, log:bool=False) -> IR:
     print('>> qtape length after:', len_ir_s, f'({r:.3%}↓)')
   return ir_s
 
-qcis_simplify = lambda qcis, nq, handle_vqc=False: ir_to_qcis(ir_simplify(qcis_to_ir(qcis, nq, handle_vqc)))
+qcis_simplify = lambda qcis, nq, handle_vqc=False: ir_to_qcis(ir_simplify(qcis_to_ir(qcis), nq, handle_vqc))
 
 def qcis_simplify_vqc(qcis:str, nq:int) -> str:
   inst_list = qcis.split('\n')

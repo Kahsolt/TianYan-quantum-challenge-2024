@@ -32,8 +32,8 @@ def run(args, qcis:str) -> str:
     popl_new = []
     qcis_set = set()
     for _, qcis in popl:
-      for simplify_func in simplifiers:
-        n_rep = 1 if simplify_func is qcis_simplify_vqc_pyzx else 3
+      for i_simpl, simplify_func in enumerate(simplifiers):
+        n_rep = 1 if i_simpl != 0 else 3
         qcis_new = qcis
         try:
           for _ in range(n_rep):

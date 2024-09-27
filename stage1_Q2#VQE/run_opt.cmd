@@ -30,6 +30,7 @@ FOR /L %%I IN (0,1,9) DO (
   ECHO sample-%%I
   python opt_vqcir.py -I %%I
 )
+python verify_solut.py
 ECHO.
 
 

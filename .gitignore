@@ -2,5 +2,10 @@
 .vscode/
 __pycache__/
 
+# ref
+ref/比赛承诺书*
+ref/通知*
+ref/*发放表*
+
 # team info
 TEAM.txt

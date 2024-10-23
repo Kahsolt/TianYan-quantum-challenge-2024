@@ -1,0 +1,30 @@
+【VQE】
+1. 爱如火
+  - ZX-calculus 原理讲得很仔细
+2. 海大
+  - 手动映射（考虑了mapping）
+  - 对消+角度融合
+3. 柯南
+  - 再合成，针对 UCCSD 线路，合并单双激发
+  - 调用 qiskit 再合成
+4. QHackers 
+  - pyzx
+5. 至高之术
+
+【QSE】
+1. amedathy
+  - GHZ: 找一条链，深搜
+  - XEB: 用了VF2++
+2. 爱如火
+  - Qiskit.DenseLayout
+3. 大盘鸡
+  - 贪心搜索匹配，然后再加SWAP
+4. 量力而行
+  - Mapomatic，同构子图，机器学习
+  - 路由算法，线路切割
+5. 量剑（很完整）
+  - 强化学习
+  - 抽特征：CNN、DAG、线路的3D位向量表示
+6. QHackers
+  - 强化学习
+7. 至高之术

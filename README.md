@@ -6,11 +6,11 @@
 
 - 专业组: [https://qc.zdxlz.com/learn/#/megagame/megagameDetail?id=1801074221374291969&lang=zh](https://qc.zdxlz.com/learn/#/megagame/megagameDetail?id=1801074221374291969&lang=zh)  
   - 队名: 这才是伊比利亚的至高之术
-  - stage1_Q1#QSE: 量子资源估计，最优化qubit映射
-  - stage1_Q2#VQE: VQE中含参线路简化
+  - stage1_Q1#QSE: 量子资源估计，最优化qubit映射 (二等奖)
+  - stage1_Q2#VQE: VQE中含参线路简化 (三等奖)
 - 大众组: [https://qc.zdxlz.com/learn/#/megagame/megagameDetail?id=1801135605315321857&lang=zh](https://qc.zdxlz.com/learn/#/megagame/megagameDetail?id=1801135605315321857&lang=zh)
   - 队名: 大群与你同在
-  - stage1_P1: 量子游戏设计
+  - stage1_P1: 量子游戏设计 (平奖)
 
 
 #### install

@@ -2,6 +2,8 @@
 
 ----
 
+获奖: 三等奖
+
 ### Solution
 
 原理: cancel_inverses + merge_rotations + ZX-Calculus reduction  
